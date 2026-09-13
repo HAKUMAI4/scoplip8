@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scoplip Admin</title>
+<style>
+  /* ============================================================
+     デザイントークン（ユーザー側アプリと世界観を合わせる：白／薄グレー／ネイビー〜青）
+     ============================================================ */
+  :root{
+    --bg:#f3f4f8;
+    --surface:#ffffff;
+    --ink:#14171f;
+    --sub:#5b6072;
+    --line:#e2e5ee;
+    --navy:#161f36;
+    --navy-soft:#232d49;
+    --accent:#2563eb;
+    --accent-soft:#eaf1ff;
+    --ok:#16a34a;
+    --ok-soft:#e8f8ee;
+    --warn:#c8790a;
+    --warn-soft:#fff4e4;
+    --danger:#dc2626;
+    --danger-soft:#fde9e9;
+    --radius-lg:16px;
+    --radius-md:12px;
+    --radius-sm:8px;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --sans: "Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--ink);
+    display:flex;
+  }
+  button, input, select{font-family:inherit;}
+
+  /* ============================================================
+     サイドバー
+     ============================================================ */
+  .sidebar{
+    width:232px; flex-shrink:0; height:100vh; position:sticky; top:0;
+    background:var(--navy);
+    color:#e7eaf3;
+    display:flex; flex-direction:column;
+    padding:22px 14px;
+  }
+  .sidebar .brand{
+    display:flex; align-items:center; gap:10px;
+    padding:6px 10px 22px;
+  }
+  .sidebar .brand .mark{
+    width:30px; height:30px; border-radius:9px;
+    background:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .sidebar .brand .name{font-size:15px; font-weight:800; letter-spacing:-0.01em;}
+  .sidebar .brand .sub{font-size:10.5px; color:#9aa3bd; font-family:var(--mono); letter-spacing:.06em;}
+
+  .nav-group{list-style:none; margin:6px 0 0; padding:0;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    width:100%; border:none; background:none; cursor:pointer;
+    color:#c7cce0; font-size:13.6px; font-weight:600;
+    padding:11px 12px; border-radius:var(--radius-sm);
+    text-align:left; margin-bottom:2px;
+    border-left:3px solid transparent;
+  }
+  .nav-item svg{flex-shrink:0; opacity:.85;}
+  .nav-item:hover{background:var(--navy-soft); color:#fff;}
+  .nav-item.active{
+    background:var(--navy-soft); color:#fff;
+    border-left-color:var(--accent);
+  }
+  .sidebar-foot{
+    margin-top:auto; padding:12px 10px 4px;
+    font-family:var(--mono); font-size:10.5px; color:#7c86a6;
+    border-top:1px solid #2a3455;
+    padding-top:16px;
+  }
+  .sidebar-foot .op{ color:#e7eaf3; font-weight:700; font-size:12px; margin-bottom:3px;}
+
+  /* ============================================================
+     メイン領域
+     ============================================================ */
+  .main{ flex:1; min-width:0; height:100vh; overflow-y:auto; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .view-inner{ max-width:1180px; margin:0 auto; padding:34px 40px 70px; }
+
+  .page-head{ margin-bottom:26px; }
+  .page-head .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--accent); font-weight:700; margin-bottom:6px; }
+  .page-head h1{ font-size:24px; font-weight:800; margin:0 0 6px; letter-spacing:-0.01em; }
+  .page-head p{ font-size:13.5px; color:var(--sub); margin:0; max-width:640px; line-height:1.7; }
+
+  /* ---------- KPIカード ---------- */
+  .kpi-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:30px; }
+  .kpi-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:18px 20px; }
+  .kpi-card .lbl{ font-family:var(--mono); font-size:11px; color:var(--sub); letter-spacing:.04em; margin-bottom:10px; }
+  .kpi-card .val{ font-size:26px; font-weight:800; letter-spacing:-0.01em; }
+  .kpi-card .sub{ font-size:12px; color:var(--ok); font-weight:700; margin-top:6px; }
+  .kpi-card .sub.flat{ color:var(--sub); font-weight:600; }
+
+  /* ---------- カード共通 / セクション ---------- */
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:22px 24px; margin-bottom:20px; }
+  .panel-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+  .panel-head h2{ font-size:15.5px; font-weight:800; margin:0; }
+  .panel-head .note{ font-family:var(--mono); font-size:11px; color:var(--sub); }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+
+  /* ---------- 簡易トレンドチャート（SVG） ---------- */
+  .chart-wrap{ }
+  .chart-wrap svg{ display:block; width:100%; height:auto; }
+  .chart-legend{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:10.5px; color:var(--sub); margin-top:6px; }
+
+  /* ---------- ランキング（横棒） ---------- */
+  .rank-list{ list-style:none; margin:0; padding:0; }
+  .rank-row{ display:flex; align-items:center; gap:12px; padding:9px 0; }
+  .rank-row .rk{ font-family:var(--mono); font-size:11px; color:var(--sub); width:16px; flex-shrink:0; }
+  .rank-row .lb{ font-size:13px; font-weight:700; width:44px; flex-shrink:0; }
+  .rank-row .track{ flex:1; height:9px; background:var(--bg); border-radius:999px; overflow:hidden; }
+  .rank-row .fill{ height:100%; background:var(--accent); border-radius:999px; }
+  .rank-row .pc{ font-family:var(--mono); font-size:12px; font-weight:700; width:44px; text-align:right; flex-shrink:0; }
+
+  /* ---------- テーブル ---------- */
+  .filter-bar{ display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .search-input{
+    flex:1; min-width:200px; max-width:320px;
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:9px 12px; font-size:13px; outline:none; background:var(--bg);
+  }
+  .search-input:focus{ border-color:var(--accent); background:#fff; }
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{
+    border:1px solid var(--line); background:#fff; color:var(--sub);
+    font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer;
+  }
+  .chip.active{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th,td{ text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); }
+  th{ font-family:var(--mono); font-size:10.5px; letter-spacing:.04em; color:var(--sub); font-weight:600; text-transform:uppercase; white-space:nowrap; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--bg); }
+  td.num{ font-family:var(--mono); }
+  .user-cell{ display:flex; align-items:center; gap:10px; }
+  .mini-avatar{
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12.5px; font-weight:800;
+  }
+  .user-cell .name{ font-weight:700; }
+  .user-cell .handle{ font-family:var(--mono); font-size:11px; color:var(--sub); }
+
+  /* ---------- バッジ ---------- */
+  .badge{ display:inline-block; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+  .badge.ok{ background:var(--ok-soft); color:var(--ok); }
+  .badge.warn{ background:var(--warn-soft); color:var(--warn); }
+  .badge.danger{ background:var(--danger-soft); color:var(--danger); }
+  .badge.neutral{ background:var(--bg); color:var(--sub); }
+
+  /* ---------- 投稿カードグリッド ---------- */
+  .post-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+  .post-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; cursor:pointer; }
+  .post-card:hover{ border-color:var(--accent); }
+  .post-card .thumb{ width:100%; aspect-ratio:3/4; background:var(--bg); position:relative; }
+  .post-card .thumb svg{ width:100%; height:100%; display:block; }
+  .post-card .thumb .badge{ position:absolute; top:8px; left:8px; }
+  .post-card .meta{ padding:11px 12px 13px; }
+  .post-card .t{ font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .post-card .a{ font-size:11.5px; color:var(--sub); margin-top:2px; }
+  .post-card .stats{ display:flex; gap:12px; margin-top:8px; font-family:var(--mono); font-size:11px; color:var(--sub); }
+  .tag-chip-sm{ display:inline-block; background:var(--accent-soft); color:var(--accent); font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; margin-right:4px; }
+  .tag-row{ display:flex; gap:6px; flex-wrap:wrap; }
+
+  /* ---------- 戻るリンク ---------- */
+  .back-link{ display:inline-flex; align-items:center; gap:6px; border:none; background:none; color:var(--sub); font-size:12.5px; font-weight:700; cursor:pointer; padding:0; margin-bottom:16px; }
+  .back-link:hover{ color:var(--accent); }
+
+  /* ---------- 投稿詳細 ---------- */
+  .detail-layout{ display:grid; grid-template-columns:340px 1fr; gap:26px; align-items:start; }
+  .detail-image-wrap{ position:relative; border-radius:var(--radius-lg); overflow:hidden; border:1px solid var(--line); background:var(--bg); }
+  .detail-image-wrap svg{ width:100%; height:auto; display:block; }
+  .breakdown-list{ list-style:none; margin:0; padding:0; }
+  .breakdown-list li{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .breakdown-list li:last-child{ border-bottom:none; }
+  .breakdown-list .cnt{ font-family:var(--mono); font-weight:700; }
+  .action-row{ display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+  .btn{ border:none; border-radius:var(--radius-sm); padding:10px 16px; font-size:13px; font-weight:700; cursor:pointer; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-danger{ background:var(--danger-soft); color:var(--danger); }
+  .btn-neutral{ background:var(--bg); color:var(--ink); border:1px solid var(--line); }
+  .btn:active{ opacity:.8; }
+
+  /* ---------- ランキング（保存数の多い作品） ---------- */
+  .top-post-list{ list-style:none; margin:0; padding:0; }
+  .top-post-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  .top-post-row:last-child{ border-bottom:none; }
+  .top-post-row .thumb{ width:40px; height:52px; border-radius:6px; overflow:hidden; flex-shrink:0; background:var(--bg); }
+  .top-post-row .thumb svg{ width:100%; height:100%; display:block; }
+  .top-post-row .t{ font-size:13px; font-weight:700; }
+  .top-post-row .a{ font-size:11px; color:var(--sub); }
+  .top-post-row .n{ margin-left:auto; font-family:var(--mono); font-size:13px; font-weight:700; color:var(--accent); }
+
+  /* ---------- 設定行 ---------- */
+  .setting-row{ display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid var(--line); }
+  .setting-row:last-child{ border-bottom:none; }
+  .setting-row .t{ font-size:13.6px; font-weight:700; }
+  .setting-row .d{ font-size:12px; color:var(--sub); margin-top:3px; }
+  .switch{ width:44px; height:26px; border-radius:999px; background:var(--line); border:none; position:relative; flex-shrink:0; cursor:pointer; }
+  .switch.on{ background:var(--accent); }
+  .switch .knob{ position:absolute; top:2.5px; left:2.5px; width:21px; height:21px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s; }
+  .switch.on .knob{ left:20.5px; }
+
+  select.status-select{
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:6px 8px; font-size:12px; background:#fff; color:var(--ink);
+  }
+  .target-link{
+    border:none; background:none; padding:0; cursor:pointer;
+    color:var(--accent); font-weight:700; font-size:13px; text-align:left;
+  }
+  .target-link:hover{ text-decoration:underline; }
+
+  /* ---------- モーダル（ユーザー詳細） ---------- */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(15,17,24,.5); display:none; align-items:flex-start; justify-content:center; z-index:100; overflow-y:auto; padding:56px 20px; }
+  .modal-overlay.show{ display:flex; }
+  .modal-panel{ width:100%; max-width:560px; background:#fff; border-radius:var(--radius-lg); padding:26px 28px 28px; }
+  .modal-close{ float:right; border:none; background:var(--bg); width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:14px; color:var(--sub); }
+  .modal-user-head{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .modal-user-head .avatar{ width:56px; height:56px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; }
+  .modal-user-head .name{ font-size:17px; font-weight:800; }
+  .modal-user-head .handle{ font-family:var(--mono); font-size:12px; color:var(--sub); }
+  .modal-stat-row{ display:flex; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-bottom:18px; }
+  .modal-stat{ flex:1; text-align:center; padding:12px 4px; }
+  .modal-stat + .modal-stat{ border-left:1px solid var(--line); }
+  .modal-stat .num{ font-size:16px; font-weight:800; }
+  .modal-stat .lb{ font-size:11px; color:var(--sub); margin-top:2px; }
+  .modal-sub-head{ font-family:var(--mono); font-size:11px; color:var(--sub); letter-spacing:.06em; margin:18px 0 10px; }
+  .activity-list{ list-style:none; margin:0; padding:0; }
+  .activity-list li{ font-size:12.8px; padding:8px 0; border-bottom:1px solid var(--line); color:var(--ink); }
+  .activity-list li:last-child{ border-bottom:none; }
+  .activity-list li .d{ color:var(--sub); font-family:var(--mono); font-size:11px; margin-right:8px; }
+  .recent-post-row{ display:flex; align-items:center; gap:10px; padding:8px 0; }
+  .recent-post-row .thumb{ width:34px; height:44px; border-radius:6px; overflow:hidden; background:var(--bg); flex-shrink:0; }
+  .recent-post-row .thumb svg{ width:100%; height:100%; display:block; }
+  .recent-post-row .t{ font-size:12.8px; font-weight:700; }
+
+  /* ---------- 投稿申請モーダル：添付作品 ---------- */
+  .sample-grid{ display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px; }
+  .sample-thumb{ width:76px; height:100px; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--line); background:var(--bg); }
+  .sample-thumb svg{ width:100%; height:100%; display:block; }
+
+  /* ---------- トースト ---------- */
+  .toast{
+    position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(10px);
+    background:rgba(20,21,26,.92); color:#fff; font-size:13px; font-weight:600;
+    padding:11px 18px; border-radius:999px; opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s; z-index:200;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:1000px){
+    .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+    .grid-2, .grid-3{ grid-template-columns:1fr; }
+    .post-grid{ grid-template-columns:repeat(2,1fr); }
+    .detail-layout{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4L20 20M20 4L4 20" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+    <div>
+      <div class="name">Scoplip Admin</div>
+      <div class="sub">OPERATIONS CONSOLE</div>
+    </div>
+  </div>
+  <ul class="nav-group" id="nav-group">
+    <li><button class="nav-item active" data-view="dashboard"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>ダッシュボード</button></li>
+    <li><button class="nav-item" data-view="users"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M4.7 20c1.4-4 3.9-6 7.3-6s5.9 2 7.3 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>ユーザー</button></li>
+    <li><button class="nav-item" data-view="posts"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M7 8.5h10M7 12h10M7 15.5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>投稿</button></li>
+    <li><button class="nav-item" data-view="savedata"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="7.5" y="7.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>保存データ</button></li>
+    <li><button class="nav-item" data-view="reports"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3.5l8.5 15h-17L12 3.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="currentColor"/></svg>通報・コメント</button></li>
+    <li><button class="nav-item" data-view="applications"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M7 9h10M7 12.5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.5 16l1.7 1.7L19 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>投稿申請</button></li>
+    <li><button class="nav-item" data-view="settings"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.5 1.5M7.5 16.5L6 18M18 18l-1.5-1.5M7.5 7.5L6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>設定</button></li>
+  </ul>
+  <div class="sidebar-foot">
+    <div class="op">運営スタッフ</div>
+    admin@scoplip.jp
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- ============================================================
+       ① ダッシュボード
+  ============================================================= -->
+  <div class="view active" id="view-dashboard">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">DASHBOARD</div>
+        <h1>ダッシュボード</h1>
+        <p>Scoplip全体の利用状況を確認できます。</p>
+      </div>
+
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <div class="grid-3">
+        <div class="panel">
+          <div class="panel-head"><h2>ユーザー数の推移</h2><span class="note">直近7日</span></div>
+          <div class="chart-wrap" id="chart-users"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>投稿数の推移</h2><span class="note">直近7日</span></div>
+          <div class="chart-wrap" id="chart-posts"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>部分保存数の推移</h2><span class="note">直近7日</span></div>
+          <div class="chart-wrap" id="chart-saves"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ② ユーザー管理
+  ============================================================= -->
+  <div class="view" id="view-users">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">USERS</div>
+        <h1>ユーザー管理</h1>
+        <p>Scoplipを利用しているユーザーの一覧です。行をクリックすると詳細を確認できます。</p>
+      </div>
+
+      <div class="filter-bar">
+        <input type="text" class="search-input" id="user-search" placeholder="ユーザー名で検索">
+        <div class="chip-row" id="user-filter-chips"></div>
+      </div>
+
+      <div class="panel" style="padding:0; overflow:hidden;">
+        <table>
+          <thead>
+            <tr><th>ユーザー</th><th>投稿数</th><th>保存数</th><th>フォロワー</th><th>登録日</th><th>ステータス</th></tr>
+          </thead>
+          <tbody id="user-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ③ 投稿管理
+  ============================================================= -->
+  <div class="view" id="view-posts">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">POSTS</div>
+        <h1>投稿管理</h1>
+        <p>ユーザーが投稿した作品の一覧です。カードをクリックすると投稿詳細を確認できます。</p>
+      </div>
+
+      <div class="filter-bar">
+        <input type="text" class="search-input" id="post-search" placeholder="作品名・投稿者で検索">
+        <div class="chip-row" id="post-filter-chips"></div>
+      </div>
+      <div class="chip-row" id="post-tag-chips" style="margin-bottom:16px;"></div>
+
+      <div class="post-grid" id="post-grid"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ⑤ 投稿詳細（投稿管理からの遷移先）
+  ============================================================= -->
+  <div class="view" id="view-postdetail">
+    <div class="view-inner">
+      <button class="back-link" id="postdetail-back">‹ 投稿管理に戻る</button>
+      <div class="page-head">
+        <div class="eyebrow">POST DETAIL</div>
+        <h1 id="pd-title">-</h1>
+        <p id="pd-meta">-</p>
+        <div class="tag-row" id="pd-tags" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="detail-layout">
+        <div>
+          <div class="detail-image-wrap" id="pd-image"></div>
+        </div>
+        <div>
+          <div class="panel">
+            <div class="panel-head"><h2>投稿の状況</h2></div>
+            <div class="grid-3">
+              <div class="kpi-card" style="border:none; padding:0;"><div class="lbl">閲覧数</div><div class="val" id="pd-views" style="font-size:20px;">0</div></div>
+              <div class="kpi-card" style="border:none; padding:0;"><div class="lbl">保存数</div><div class="val" id="pd-saves" style="font-size:20px;">0</div></div>
+              <div class="kpi-card" style="border:none; padding:0;"><div class="lbl">コメント数</div><div class="val" id="pd-comments" style="font-size:20px;">0</div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>部分保存された範囲</h2><span class="note">画像上の半透明の枠が保存範囲</span></div>
+            <ul class="breakdown-list" id="pd-breakdown"></ul>
+          </div>
+          <div class="panel" id="pd-report-panel" style="display:none;">
+            <div class="panel-head"><h2>この投稿への通報</h2></div>
+            <p style="font-size:13px; color:var(--sub); margin:0 0 12px;" id="pd-report-summary"></p>
+            <button class="btn btn-neutral" id="pd-view-reports-btn">通報一覧で確認する</button>
+          </div>
+          <div class="action-row">
+            <button class="btn btn-danger" id="pd-toggle-public-btn">非公開にする</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ④ 部分保存データ・分析
+  ============================================================= -->
+  <div class="view" id="view-savedata">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">SAVE DATA</div>
+        <h1>部分保存データ・分析</h1>
+        <p>Scoplip最大の特徴である「部分保存」の集計データです。ユーザーが作品のどの部分を参考にしているかを可視化します。単純な閲覧数・いいね数ではなく、実際に保存された範囲そのものを扱います。</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>保存数の多い作品</h2><span class="note">TOP5</span></div>
+        <ul class="top-post-list" id="savedata-top-posts"></ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>保存数の推移</h2><span class="note">直近7日・全投稿合計</span></div>
+        <div class="chart-wrap" id="chart-savedata"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ⑥ 通報・コメント管理
+  ============================================================= -->
+  <div class="view" id="view-reports">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">REPORTS</div>
+        <h1>通報・コメント管理</h1>
+        <p>ユーザーから寄せられた通報の一覧です。ステータスはその場で変更できます。</p>
+      </div>
+
+      <div class="filter-bar">
+        <input type="text" class="search-input" id="report-search" placeholder="対象・投稿者で検索">
+        <div class="chip-row" id="report-filter-chips"></div>
+      </div>
+
+      <div class="panel" style="padding:0; overflow:hidden;">
+        <table>
+          <thead>
+            <tr><th>対象</th><th>投稿者</th><th>通報理由</th><th>通報日時</th><th>ステータス</th></tr>
+          </thead>
+          <tbody id="report-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       投稿申請（投稿機能を使いたいユーザーからの申請を確認する）
+  ============================================================= -->
+  <div class="view" id="view-applications">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">POST APPLICATIONS</div>
+        <h1>投稿申請</h1>
+        <p>投稿機能を使いたいというユーザーからの申請を確認できます。承認すると、そのユーザーは作品を投稿できるようになります。</p>
+      </div>
+
+      <div class="filter-bar">
+        <input type="text" class="search-input" id="application-search" placeholder="ユーザー名で検索">
+        <div class="chip-row" id="application-filter-chips"></div>
+      </div>
+
+      <div class="panel" style="padding:0; overflow:hidden;">
+        <table>
+          <thead>
+            <tr><th>ユーザー</th><th>意欲</th><th>申請日時</th><th>ステータス</th><th>操作</th></tr>
+          </thead>
+          <tbody id="application-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       設定
+  ============================================================= -->
+  <div class="view" id="view-settings">
+    <div class="view-inner">
+      <div class="page-head">
+        <div class="eyebrow">SETTINGS</div>
+        <h1>設定</h1>
+        <p>運営コンソールの基本設定です（プロトタイプのため一部はダミー表示です）。</p>
+      </div>
+      <div class="panel">
+        <div class="setting-row">
+          <div><div class="t">新規投稿の自動審査</div><div class="d">投稿された作品を自動でスキャンし、疑わしいものにフラグを立てます</div></div>
+          <button class="switch on" data-setting="autoReview"><div class="knob"></div></button>
+        </div>
+        <div class="setting-row">
+          <div><div class="t">通報3件で自動的に非公開化</div><div class="d">同一投稿への通報が3件を超えたら自動的に非公開にします</div></div>
+          <button class="switch" data-setting="autoHide"><div class="knob"></div></button>
+        </div>
+        <div class="setting-row">
+          <div><div class="t">運営スタッフへの通知メール</div><div class="d">新しい通報が届いたときにメールで通知します</div></div>
+          <button class="switch on" data-setting="notifyMail"><div class="knob"></div></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-panel" id="modal-panel"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   Scoplip Admin - サンプルデータ & ロジック
+   ================================================================ */
+
+/* ---------- ユーティリティ ---------- */
+function fmt(n){ return n.toLocaleString('ja-JP'); }
+function rand(min, max){ return Math.random() * (max - min) + min; }
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ---------- イラスト生成（ユーザー側アプリと同じ世界観のダミー作品画像） ---------- */
+function illustrationBody(c){
+  return `
+    <rect x="0" y="0" width="300" height="400" fill="${c.bg}"/>
+    <ellipse cx="150" cy="92" rx="96" ry="92" fill="${c.hair}"/>
+    <rect x="58" y="228" width="184" height="172" rx="34" fill="${c.clothes}"/>
+    <rect x="18" y="270" width="58" height="84" rx="22" fill="${c.skin}"/>
+    <rect x="224" y="270" width="58" height="84" rx="22" fill="${c.skin}"/>
+    <circle cx="150" cy="132" r="76" fill="${c.skin}"/>
+    <path d="M74,116 Q150,34 226,116 L226,66 Q150,4 74,66 Z" fill="${c.hair}"/>
+    <ellipse cx="119" cy="142" rx="10" ry="14" fill="#2b2b33"/>
+    <ellipse cx="181" cy="142" rx="10" ry="14" fill="#2b2b33"/>
+    <path d="M134,177 Q150,187 166,177" stroke="#2b2b33" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  `;
+}
+function illustrationSVG(colors){
+  return `<svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">${illustrationBody(colors)}</svg>`;
+}
+
+/* ---------- 部位ゾーン（% 座標）：ユーザー側アプリと同じ基準 ---------- */
+const ZONES = {
+  hair:   {x:15, y:3,  w:70, h:33},
+  eyes:   {x:33, y:31, w:34, h:11},
+  clothes:{x:10, y:55, w:80, h:41},
+  handL:  {x:3,  y:67, w:19, h:22},
+  handR:  {x:78, y:67, w:19, h:22},
+};
+function jitteredRegion(name){
+  const z = ZONES[name];
+  const w = z.w * rand(0.5, 0.8);
+  const h = z.h * rand(0.5, 0.8);
+  const x = z.x + rand(0, Math.max(z.w - w, 0));
+  const y = z.y + rand(0, Math.max(z.h - h, 0));
+  return {x, y, w, h};
+}
+// 表示上は 髪/目/服/手 の4カテゴリにまとめる（handL・handRは「手」として合算）
+function zoneToLabel(name){
+  if(name === 'handL' || name === 'handR') return '手';
+  if(name === 'hair') return '髪';
+  if(name === 'eyes') return '目';
+  if(name === 'clothes') return '服';
+  return name;
+}
+
+// 指定した部位ごとの件数（zoneWeights）から、重ね描き用の矩形を生成する
+// 件数が多い部位は視認性のため描画数に上限（capPerZone）を設ける
+function buildOverlayRects(zoneWeights, capPerZone){
+  capPerZone = capPerZone || 40;
+  let rects = '';
+  Object.keys(zoneWeights).forEach(zoneName => {
+    const count = zoneWeights[zoneName];
+    const drawCount = Math.max(1, Math.min(count, capPerZone));
+    for(let i = 0; i < drawCount; i++){
+      const r = jitteredRegion(zoneName);
+      const x = r.x/100*300, y = r.y/100*400, w = r.w/100*300, h = r.h/100*400;
+      rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"
+        fill="rgba(37,99,235,0.10)" stroke="rgba(29,78,216,0.55)" stroke-width="2"/>`;
+    }
+  });
+  return rects;
+}
+function overlaySVG(colors, zoneWeights, capPerZone){
+  return `<svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+    ${illustrationBody(colors)}
+    ${buildOverlayRects(zoneWeights, capPerZone)}
+  </svg>`;
+}
+// 4カテゴリ（髪/目/服/手）の合計件数を返す
+function summarizeZoneWeights(zoneWeights){
+  const out = {'髪':0, '目':0, '服':0, '手':0};
+  Object.keys(zoneWeights).forEach(z => { out[zoneToLabel(z)] += zoneWeights[z]; });
+  return out;
+}
+
+/* ---------- 簡易チャート（SVG折れ線＋面） ---------- */
+function renderTrendChart(containerId, data, color){
+  const w = 320, h = 96, pad = 6;
+  const max = Math.max(...data) * 1.15;
+  const min = Math.min(...data) * 0.85;
+  const stepX = (w - pad*2) / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (h - pad*2) * (1 - (v - min) / (max - min || 1));
+    return [x, y];
+  });
+  const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${points[points.length-1][0].toFixed(1)},${h-pad} L${points[0][0].toFixed(1)},${h-pad} Z`;
+  const svg = `
+    <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+      <path d="${areaPath}" fill="${color}" opacity="0.12"/>
+      <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${points.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="${color}"/>`).join('')}
+    </svg>
+  `;
+  document.getElementById(containerId).innerHTML = svg;
+  const legend = document.createElement('div');
+  legend.className = 'chart-legend';
+  legend.innerHTML = `<span>7日前：${fmt(data[0])}</span><span>本日：${fmt(data[data.length-1])}</span>`;
+  document.getElementById(containerId).appendChild(legend);
+}
+
+/* ================================================================
+   サンプルデータ
+   ================================================================ */
+
+/* ---------- ダッシュボードKPI ---------- */
+const KPI = {
+  totalUsers: 12482,
+  todayActiveUsers: 1843,
+  totalPosts: 326,
+  todayPosts: 18,
+  totalSaves: 4821,
+  todaySaves: 212,
+};
+const TREND_USERS = [1520, 1610, 1580, 1700, 1750, 1690, 1843];
+const TREND_POSTS = [11, 14, 9, 16, 13, 20, 18];
+const TREND_SAVES = [165, 180, 190, 205, 198, 230, 212];
+
+/* ---------- ユーザー ---------- */
+const USERS = [
+  {id:'u1', name:'あおい', handle:'@aoi_illust', posts:24, saves:312, followers:1204, joined:'2025-11-02', status:'active'},
+  {id:'u2', name:'ミナト', handle:'@minato_art', posts:8, saves:98, followers:340, joined:'2026-01-15', status:'active'},
+  {id:'u3', name:'ゆき', handle:'@yuki_sketch', posts:41, saves:560, followers:2980, joined:'2025-06-20', status:'active'},
+  {id:'u4', name:'そら', handle:'@sora_draw', posts:3, saves:20, followers:45, joined:'2026-05-01', status:'suspended'},
+  {id:'u5', name:'はると', handle:'@haruto_p', posts:15, saves:150, followers:610, joined:'2025-09-10', status:'active'},
+  {id:'u6', name:'つき', handle:'@tsuki_moon', posts:6, saves:44, followers:120, joined:'2026-03-22', status:'active'},
+  {id:'u7', name:'みどり', handle:'@midori_forest', posts:19, saves:275, followers:890, joined:'2025-08-05', status:'active'},
+  {id:'u8', name:'つばさ', handle:'@tsubasa_uni', posts:2, saves:5, followers:12, joined:'2026-06-30', status:'suspended'},
+  {id:'u9', name:'さくら', handle:'@sakura_pink', posts:33, saves:402, followers:1650, joined:'2025-04-18', status:'active'},
+  {id:'u10', name:'ゆきの', handle:'@yukino_w', posts:5, saves:30, followers:88, joined:'2026-02-09', status:'active'},
+  {id:'u11', name:'かなで', handle:'@kanade_line', posts:27, saves:340, followers:1020, joined:'2025-12-01', status:'active'},
+  {id:'u12', name:'れん', handle:'@ren_sketchy', posts:1, saves:2, followers:4, joined:'2026-07-05', status:'suspended'},
+];
+
+/* ---------- タグ（固定6種類） ---------- */
+const TAGS = ['イラスト', 'デザイン', 'アイデア', 'トレス素材', '3Dモデル', '写真'];
+
+/* ---------- 投稿 ---------- */
+const POSTS = [
+  {id:'p1', title:'月夜のポートレート', author:'あおい', date:'2026-06-02', views:4832, saves:642, comments:18, status:'public', tags:['イラスト'],
+    colors:{bg:'#eef2ff', hair:'#2b3a67', skin:'#f6d7c1', clothes:'#3f6b6d'},
+    zoneWeights:{hair:250, clothes:180, eyes:90, handL:70, handR:52}},
+  {id:'p2', title:'夏の少女', author:'ひなた', date:'2026-06-10', views:3120, saves:401, comments:9, status:'public', tags:['イラスト', 'デザイン'],
+    colors:{bg:'#fff7ed', hair:'#c2410c', skin:'#f8d9b0', clothes:'#facc15'},
+    zoneWeights:{hair:120, clothes:150, eyes:60, handL:40, handR:31}},
+  {id:'p3', title:'森の精霊', author:'みどり', date:'2026-05-28', views:2890, saves:388, comments:6, status:'public', tags:['アイデア'],
+    colors:{bg:'#ecfdf3', hair:'#166534', skin:'#e6c299', clothes:'#78350f'},
+    zoneWeights:{hair:180, clothes:90, eyes:60, handL:30, handR:28}},
+  {id:'p4', title:'雨の日の制服', author:'つばさ', date:'2026-07-01', views:512, saves:40, comments:3, status:'reported', tags:['トレス素材'],
+    colors:{bg:'#f0f9ff', hair:'#1e293b', skin:'#f3d4bd', clothes:'#0f766e'},
+    zoneWeights:{hair:10, clothes:18, eyes:6, handL:4, handR:2}},
+  {id:'p5', title:'桜色のワンピース', author:'さくら', date:'2026-04-14', views:5210, saves:705, comments:24, status:'public', tags:['デザイン'],
+    colors:{bg:'#fdf2f8', hair:'#831843', skin:'#f8d9c4', clothes:'#f472b6'},
+    zoneWeights:{hair:200, clothes:300, eyes:100, handL:60, handR:45}},
+  {id:'p6', title:'冬支度', author:'ゆきの', date:'2026-03-09', views:1980, saves:210, comments:5, status:'public', tags:['写真'],
+    colors:{bg:'#f8fafc', hair:'#334155', skin:'#f4d6bd', clothes:'#64748b'},
+    zoneWeights:{hair:80, clothes:70, eyes:30, handL:18, handR:12}},
+  {id:'p7', title:'夕焼けの制服', author:'ミナト', date:'2026-06-20', views:2210, saves:308, comments:7, status:'public', tags:['3Dモデル'],
+    colors:{bg:'#fff1f2', hair:'#9f1239', skin:'#f8d9c4', clothes:'#fb7185'},
+    zoneWeights:{hair:90, clothes:140, eyes:40, handL:22, handR:16}},
+  {id:'p8', title:'雨上がりの少年', author:'はると', date:'2026-02-18', views:1189, saves:143, comments:4, status:'private', tags:['イラスト'],
+    colors:{bg:'#f0fdfa', hair:'#134e4a', skin:'#f3d4bd', clothes:'#0d9488'},
+    zoneWeights:{hair:50, clothes:60, eyes:20, handL:8, handR:5}},
+  {id:'p9', title:'ネオン街の相棒', author:'かなで', date:'2026-07-05', views:980, saves:76, comments:11, status:'reported', tags:['アイデア'],
+    colors:{bg:'#111827', hair:'#a855f7', skin:'#f3d4bd', clothes:'#0ea5e9'},
+    zoneWeights:{hair:20, clothes:30, eyes:14, handL:8, handR:4}},
+  {id:'p10', title:'花冠の少女', author:'つき', date:'2026-01-22', views:640, saves:55, comments:2, status:'public', tags:['イラスト'],
+    colors:{bg:'#fdf4ff', hair:'#7e22ce', skin:'#f6d7c1', clothes:'#eab308'},
+    zoneWeights:{hair:22, clothes:15, eyes:10, handL:5, handR:3}},
+  {id:'p11', title:'無題', author:'れん', date:'2026-07-10', views:45, saves:2, comments:1, status:'reported', tags:['イラスト'],
+    colors:{bg:'#f4f5f8', hair:'#525866', skin:'#f3d4bd', clothes:'#94a3b8'},
+    zoneWeights:{hair:1, clothes:1, eyes:0, handL:0, handR:0}},
+  {id:'p12', title:'教室の窓辺', author:'ゆき', date:'2026-05-15', views:3980, saves:512, comments:13, status:'public', tags:['トレス素材'],
+    colors:{bg:'#eff6ff', hair:'#1d4ed8', skin:'#f6d7c1', clothes:'#93c5fd'},
+    zoneWeights:{hair:210, clothes:180, eyes:70, handL:30, handR:22}},
+];
+function findPostByTitle(title){ return POSTS.find(p => p.title === title); }
+
+/* ---------- 通報・コメント ---------- */
+let REPORTS = [
+  {id:'r1', target:'雨の日の制服', poster:'つばさ', reason:'著作権に関する報告', at:'2026-07-02 10:12', status:'未対応'},
+  {id:'r2', target:'ネオン街の相棒', poster:'かなで', reason:'不適切な投稿', at:'2026-07-06 09:40', status:'確認中'},
+  {id:'r3', target:'無題', poster:'れん', reason:'スパム', at:'2026-07-10 18:05', status:'未対応'},
+  {id:'r4', target:'コメント：「これってトレスですよね？」', poster:'ミナト', reason:'不適切な投稿', at:'2026-07-08 14:22', status:'確認中'},
+  {id:'r5', target:'雨の日の制服', poster:'つばさ', reason:'著作権に関する報告', at:'2026-07-03 08:00', status:'対応済み'},
+  {id:'r6', target:'コメント：「連絡先交換しませんか」', poster:'れん', reason:'スパム', at:'2026-07-11 20:15', status:'未対応'},
+  {id:'r7', target:'夏の少女', poster:'ひなた', reason:'著作権に関する報告', at:'2026-06-25 11:30', status:'対応済み'},
+  {id:'r8', target:'ネオン街の相棒', poster:'かなで', reason:'スパム', at:'2026-07-07 12:00', status:'未対応'},
+];
+
+/* ---------- 投稿機能の利用申請 ---------- */
+let APPLICATIONS = [
+  {id:'a1', name:'しずく', handle:'@shizuku_art', at:'2026-07-09 14:20', status:'審査中',
+    rightsConfirmed:true, categories:['イラスト'],
+    motivation:'自分のイラストを投稿して、参考にされた部分を見てみたいです。もっと上手くなりたいです。',
+    achievements:'',
+    samples:[
+      {bg:'#fef2f2', hair:'#7f1d1d', skin:'#f6d7c1', clothes:'#fca5a5'},
+      {bg:'#eff6ff', hair:'#1e3a8a', skin:'#f3d4bd', clothes:'#93c5fd'},
+      {bg:'#f0fdf4', hair:'#14532d', skin:'#f8d9c4', clothes:'#86efac'},
+    ]},
+  {id:'a2', name:'レオ', handle:'@leo_doodle', at:'2026-07-08 09:12', status:'審査中',
+    rightsConfirmed:true, categories:['イラスト', 'デザイン'],
+    motivation:'描いた絵をもっと多くの人に見てもらいたいので',
+    achievements:'地域のイラストコンテストで入選したことがあります',
+    samples:[
+      {bg:'#fffbeb', hair:'#78350f', skin:'#f3d4bd', clothes:'#fcd34d'},
+      {bg:'#f5f3ff', hair:'#4c1d95', skin:'#f6d7c1', clothes:'#c4b5fd'},
+    ]},
+  {id:'a3', name:'ひまり', handle:'@himari_c', at:'2026-07-05 19:45', status:'承認',
+    rightsConfirmed:true, categories:['イラスト', '写真'],
+    motivation:'資料としてだけでなく、自分の作品も共有したいです',
+    achievements:'SNSでの活動歴3年、フォロワー2,000人ほど',
+    samples:[
+      {bg:'#fdf2f8', hair:'#831843', skin:'#f8d9c4', clothes:'#f472b6'},
+      {bg:'#ecfeff', hair:'#155e75', skin:'#f3d4bd', clothes:'#67e8f9'},
+      {bg:'#fefce8', hair:'#713f12', skin:'#f6d7c1', clothes:'#fde047'},
+      {bg:'#f0f9ff', hair:'#0c4a6e', skin:'#f8d9c4', clothes:'#7dd3fc'},
+    ]},
+  {id:'a4', name:'たくと', handle:'@takuto_k', at:'2026-07-11 08:00', status:'審査中',
+    rightsConfirmed:true, categories:['3Dモデル'],
+    motivation:'とにかく絵が上手くなりたいので',
+    achievements:'',
+    samples:[
+      {bg:'#f8fafc', hair:'#334155', skin:'#f4d6bd', clothes:'#64748b'},
+    ]},
+  {id:'a5', name:'のあ', handle:'@noa_pixel', at:'2026-07-02 21:10', status:'却下',
+    rightsConfirmed:true, categories:['イラスト'],
+    motivation:'二次創作のファンアートを投稿したいです',
+    achievements:'',
+    samples:[
+      {bg:'#fdf4ff', hair:'#7e22ce', skin:'#f6d7c1', clothes:'#eab308'},
+      {bg:'#111827', hair:'#a855f7', skin:'#f3d4bd', clothes:'#0ea5e9'},
+    ]},
+  {id:'a6', name:'かえで', handle:'@kaede_m', at:'2026-07-10 16:30', status:'審査中',
+    rightsConfirmed:true, categories:['アイデア', 'トレス素材'],
+    motivation:'自分のメイキング動画も共有したいので、投稿を通じてもっと絵が上手くなりたいです',
+    achievements:'YouTubeでお絵描き動画を配信しています',
+    samples:[
+      {bg:'#fff7ed', hair:'#c2410c', skin:'#f8d9b0', clothes:'#facc15'},
+      {bg:'#ecfdf3', hair:'#166534', skin:'#e6c299', clothes:'#78350f'},
+      {bg:'#eef2ff', hair:'#312e81', skin:'#f6d7c1', clothes:'#4338ca'},
+    ]},
+];
+
+/* ---------- ユーザーの最近の活動（ダミー） ---------- */
+const ACTIVITY_TEMPLATES = [
+  '新しい作品を投稿しました',
+  '他のユーザーの作品を部分保存しました',
+  'コレクションに新しいフォルダを作成しました',
+  '作品にコメントしました',
+  'プロフィールを更新しました',
+];
+function buildActivity(user){
+  const days = [1, 3, 4, 6, 9];
+  return days.map((d, i) => ({
+    days: d,
+    text: ACTIVITY_TEMPLATES[i % ACTIVITY_TEMPLATES.length],
+  }));
+}
+
+/* ================================================================
+   画面切り替え
+   ================================================================ */
+function showView(id){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === id);
+  });
+  document.querySelector('.main').scrollTo(0, 0);
+}
+document.getElementById('nav-group').addEventListener('click', (e) => {
+  const btn = e.target.closest('.nav-item');
+  if(!btn) return;
+  showView(btn.dataset.view);
+});
+
+/* ================================================================
+   ① ダッシュボード
+   ================================================================ */
+function renderDashboard(){
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = '';
+  const items = [
+    {lbl:'総ユーザー数', val:KPI.totalUsers, sub:`今日のアクティブ：${fmt(KPI.todayActiveUsers)}`},
+    {lbl:'今日のアクティブユーザー', val:KPI.todayActiveUsers, sub:'昨日比 +8.1%'},
+    {lbl:'総投稿数', val:KPI.totalPosts, sub:`今日の投稿：${fmt(KPI.todayPosts)}件`},
+    {lbl:'今日の投稿数', val:KPI.todayPosts, sub:'昨日比 -10.0%', flat:true},
+    {lbl:'総部分保存数', val:KPI.totalSaves, sub:`今日の部分保存：${fmt(KPI.todaySaves)}件`},
+    {lbl:'今日の部分保存数', val:KPI.todaySaves, sub:'昨日比 +7.7%'},
+  ];
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'kpi-card';
+    card.innerHTML = `
+      <div class="lbl">${item.lbl}</div>
+      <div class="val">${fmt(item.val)}</div>
+      <div class="sub ${item.flat ? 'flat' : ''}">${item.sub}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  renderTrendChart('chart-users', TREND_USERS, '#2563eb');
+  renderTrendChart('chart-posts', TREND_POSTS, '#16a34a');
+  renderTrendChart('chart-saves', TREND_SAVES, '#c8790a');
+}
+
+/* ================================================================
+   ② ユーザー管理
+   ================================================================ */
+let userStatusFilter = 'all';
+const USER_FILTERS = [
+  {id:'all', label:'すべて'},
+  {id:'active', label:'利用中'},
+  {id:'suspended', label:'停止中'},
+];
+function renderUserFilterChips(){
+  const el = document.getElementById('user-filter-chips');
+  el.innerHTML = '';
+  USER_FILTERS.forEach(f => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (f.id === userStatusFilter ? ' active' : '');
+    chip.textContent = f.label;
+    chip.addEventListener('click', () => { userStatusFilter = f.id; renderUsers(); });
+    el.appendChild(chip);
+  });
+}
+function statusBadge(status){
+  if(status === 'active') return `<span class="badge ok">利用中</span>`;
+  if(status === 'suspended') return `<span class="badge danger">停止中</span>`;
+  return `<span class="badge neutral">${status}</span>`;
+}
+function renderUsers(){
+  renderUserFilterChips();
+  const q = document.getElementById('user-search').value.trim().toLowerCase();
+  const body = document.getElementById('user-table-body');
+  body.innerHTML = '';
+  const filtered = USERS.filter(u => {
+    if(userStatusFilter !== 'all' && u.status !== userStatusFilter) return false;
+    if(q && !u.name.toLowerCase().includes(q) && !u.handle.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(filtered.length === 0){
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--sub); padding:30px;">該当するユーザーが見つかりませんでした</td></tr>`;
+    return;
+  }
+  filtered.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="user-cell"><div class="mini-avatar">${u.name.charAt(0)}</div><div><div class="name">${u.name}</div><div class="handle">${u.handle}</div></div></div></td>
+      <td class="num">${fmt(u.posts)}</td>
+      <td class="num">${fmt(u.saves)}</td>
+      <td class="num">${fmt(u.followers)}</td>
+      <td>${u.joined}</td>
+      <td>${statusBadge(u.status)}</td>
+    `;
+    tr.addEventListener('click', () => openUserModal(u));
+    body.appendChild(tr);
+  });
+}
+document.getElementById('user-search').addEventListener('input', renderUsers);
+
+function openUserModal(user){
+  const recentPosts = POSTS.filter(p => p.author === user.name).slice(0, 3);
+  const activity = buildActivity(user);
+  const panel = document.getElementById('modal-panel');
+  panel.innerHTML = `
+    <button class="modal-close" id="modal-close-btn">✕</button>
+    <div class="modal-user-head">
+      <div class="avatar">${user.name.charAt(0)}</div>
+      <div>
+        <div class="name">${user.name}</div>
+        <div class="handle">${user.handle}</div>
+      </div>
+    </div>
+    <div class="modal-stat-row">
+      <div class="modal-stat"><div class="num">${fmt(user.posts)}</div><div class="lb">投稿数</div></div>
+      <div class="modal-stat"><div class="num">${fmt(user.saves)}</div><div class="lb">保存数</div></div>
+      <div class="modal-stat"><div class="num">${fmt(user.followers)}</div><div class="lb">フォロワー</div></div>
+    </div>
+    <div class="modal-sub-head">最近の投稿</div>
+    <div id="modal-recent-posts">
+      ${recentPosts.length === 0 ? '<div style="font-size:12.5px; color:var(--sub);">投稿はありません</div>' :
+        recentPosts.map(p => `
+          <div class="recent-post-row">
+            <div class="thumb">${illustrationSVG(p.colors)}</div>
+            <div class="t">${p.title}</div>
+          </div>
+        `).join('')}
+    </div>
+    <div class="modal-sub-head">最近の活動</div>
+    <ul class="activity-list">
+      ${activity.map(a => `<li><span class="d">${a.days}日前</span>${a.text}</li>`).join('')}
+    </ul>
+    <div class="action-row">
+      <button class="btn ${user.status === 'active' ? 'btn-danger' : 'btn-primary'}" id="modal-toggle-status-btn">
+        ${user.status === 'active' ? '利用を停止する' : '利用を再開する'}
+      </button>
+    </div>
+  `;
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-toggle-status-btn').addEventListener('click', () => {
+    user.status = user.status === 'active' ? 'suspended' : 'active';
+    showToast(user.status === 'active' ? '利用を再開しました' : '利用を停止しました');
+    closeModal();
+    renderUsers();
+  });
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'modal-overlay') closeModal();
+});
+
+/* ================================================================
+   ③ 投稿管理
+   ================================================================ */
+let postStatusFilter = 'all';
+const POST_FILTERS = [
+  {id:'all', label:'すべて'},
+  {id:'public', label:'公開中'},
+  {id:'private', label:'非公開'},
+  {id:'reported', label:'通報あり'},
+];
+function renderPostFilterChips(){
+  const el = document.getElementById('post-filter-chips');
+  el.innerHTML = '';
+  POST_FILTERS.forEach(f => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (f.id === postStatusFilter ? ' active' : '');
+    chip.textContent = f.label;
+    chip.addEventListener('click', () => { postStatusFilter = f.id; renderPosts(); });
+    el.appendChild(chip);
+  });
+}
+function postStatusBadge(status){
+  if(status === 'public') return `<span class="badge ok">公開中</span>`;
+  if(status === 'private') return `<span class="badge neutral">非公開</span>`;
+  if(status === 'reported') return `<span class="badge danger">通報あり</span>`;
+  return `<span class="badge neutral">${status}</span>`;
+}
+let postTagFilter = 'all';
+function renderPostTagChips(){
+  const el = document.getElementById('post-tag-chips');
+  el.innerHTML = '';
+  ['all', ...TAGS].forEach(t => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (t === postTagFilter ? ' active' : '');
+    chip.textContent = t === 'all' ? 'すべてのタグ' : t;
+    chip.addEventListener('click', () => { postTagFilter = t; renderPosts(); });
+    el.appendChild(chip);
+  });
+}
+function renderPosts(){
+  renderPostFilterChips();
+  renderPostTagChips();
+  const q = document.getElementById('post-search').value.trim().toLowerCase();
+  const grid = document.getElementById('post-grid');
+  grid.innerHTML = '';
+  const filtered = POSTS.filter(p => {
+    if(postStatusFilter !== 'all' && p.status !== postStatusFilter) return false;
+    if(postTagFilter !== 'all' && !(p.tags || []).includes(postTagFilter)) return false;
+    if(q && !p.title.toLowerCase().includes(q) && !p.author.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(filtered.length === 0){
+    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--sub); padding:40px; font-size:13px;">該当する投稿が見つかりませんでした</div>`;
+    return;
+  }
+  filtered.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'post-card';
+    card.innerHTML = `
+      <div class="thumb">${illustrationSVG(p.colors)}${postStatusBadge(p.status)}</div>
+      <div class="meta">
+        <div class="t">${p.title}</div>
+        <div class="a">${p.author} ・ ${p.date}</div>
+        <div class="stats"><span>閲覧 ${fmt(p.views)}</span><span>保存 ${fmt(p.saves)}</span></div>
+        <div class="tag-row" style="margin-top:8px;">${(p.tags || []).map(t => `<span class="tag-chip-sm">${t}</span>`).join('')}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => openPostDetail(p));
+    grid.appendChild(card);
+  });
+}
+document.getElementById('post-search').addEventListener('input', renderPosts);
+
+/* ================================================================
+   ⑤ 投稿詳細
+   ================================================================ */
+let currentPostDetail = null;
+function openPostDetail(post){
+  currentPostDetail = post;
+  document.getElementById('pd-title').textContent = post.title;
+  document.getElementById('pd-meta').textContent = `${post.author} ・ 投稿日 ${post.date}`;
+  document.getElementById('pd-tags').innerHTML = (post.tags || []).map(t => `<span class="tag-chip-sm">${t}</span>`).join('');
+  document.getElementById('pd-image').innerHTML = overlaySVG(post.colors, post.zoneWeights, 40);
+  document.getElementById('pd-views').textContent = fmt(post.views);
+  document.getElementById('pd-saves').textContent = fmt(post.saves);
+  document.getElementById('pd-comments').textContent = fmt(post.comments);
+
+  const summary = summarizeZoneWeights(post.zoneWeights);
+  const breakdown = document.getElementById('pd-breakdown');
+  breakdown.innerHTML = ['髪','目','服','手'].map(label =>
+    `<li><span>${label}</span><span class="cnt">${fmt(summary[label])}件</span></li>`
+  ).join('');
+
+  const relatedReports = REPORTS.filter(r => r.target === post.title);
+  const reportPanel = document.getElementById('pd-report-panel');
+  if(relatedReports.length > 0){
+    reportPanel.style.display = '';
+    document.getElementById('pd-report-summary').textContent = `この投稿には ${relatedReports.length}件の通報が寄せられています。`;
+  } else {
+    reportPanel.style.display = 'none';
+  }
+
+  updatePostDetailButton();
+  showView('postdetail');
+}
+document.getElementById('postdetail-back').addEventListener('click', () => showView('posts'));
+function updatePostDetailButton(){
+  const btn = document.getElementById('pd-toggle-public-btn');
+  if(currentPostDetail.status === 'private'){
+    btn.textContent = '公開に戻す';
+    btn.className = 'btn btn-primary';
+  } else {
+    btn.textContent = '非公開にする';
+    btn.className = 'btn btn-danger';
+  }
+}
+document.getElementById('pd-toggle-public-btn').addEventListener('click', () => {
+  if(currentPostDetail.status === 'private'){
+    currentPostDetail.status = 'public';
+    showToast('投稿を公開に戻しました');
+  } else {
+    currentPostDetail.status = 'private';
+    showToast('投稿を非公開にしました');
+  }
+  updatePostDetailButton();
+});
+document.getElementById('pd-view-reports-btn').addEventListener('click', () => {
+  reportSearchPreset = currentPostDetail.title;
+  showView('reports');
+  renderReports();
+});
+
+/* ================================================================
+   ④ 部分保存データ・分析
+   ================================================================ */
+function renderSaveData(){
+  renderTrendChart('chart-savedata', TREND_SAVES, '#2563eb');
+
+  const topPosts = [...POSTS].sort((a, b) => b.saves - a.saves).slice(0, 5);
+  const topList = document.getElementById('savedata-top-posts');
+  topList.innerHTML = '';
+  topPosts.forEach(p => {
+    const row = document.createElement('li');
+    row.className = 'top-post-row';
+    row.innerHTML = `
+      <div class="thumb">${illustrationSVG(p.colors)}</div>
+      <div><div class="t">${p.title}</div><div class="a">${p.author}</div></div>
+      <div class="n">${fmt(p.saves)}</div>
+    `;
+    row.addEventListener('click', () => openPostDetail(p));
+    topList.appendChild(row);
+  });
+}
+
+/* ================================================================
+   ⑥ 通報・コメント管理
+   ================================================================ */
+let reportStatusFilter = 'all';
+let reportSearchPreset = '';
+const REPORT_FILTERS = [
+  {id:'all', label:'すべて'},
+  {id:'未対応', label:'未対応'},
+  {id:'確認中', label:'確認中'},
+  {id:'対応済み', label:'対応済み'},
+];
+function renderReportFilterChips(){
+  const el = document.getElementById('report-filter-chips');
+  el.innerHTML = '';
+  REPORT_FILTERS.forEach(f => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (f.id === reportStatusFilter ? ' active' : '');
+    chip.textContent = f.label;
+    chip.addEventListener('click', () => { reportStatusFilter = f.id; renderReports(); });
+    el.appendChild(chip);
+  });
+}
+function reportStatusBadgeClass(status){
+  if(status === '未対応') return 'danger';
+  if(status === '確認中') return 'warn';
+  if(status === '対応済み') return 'ok';
+  return 'neutral';
+}
+function renderReports(){
+  renderReportFilterChips();
+  const searchInput = document.getElementById('report-search');
+  if(reportSearchPreset){ searchInput.value = reportSearchPreset; reportSearchPreset = ''; }
+  const q = searchInput.value.trim().toLowerCase();
+  const body = document.getElementById('report-table-body');
+  body.innerHTML = '';
+  const filtered = REPORTS.filter(r => {
+    if(reportStatusFilter !== 'all' && r.status !== reportStatusFilter) return false;
+    if(q && !r.target.toLowerCase().includes(q) && !r.poster.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(filtered.length === 0){
+    body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--sub); padding:30px;">該当する通報が見つかりませんでした</td></tr>`;
+    return;
+  }
+  filtered.forEach(r => {
+    const tr = document.createElement('tr');
+    const relatedPost = findPostByTitle(r.target);
+    const targetCellHTML = relatedPost
+      ? `<button class="target-link">${r.target}</button>`
+      : r.target;
+    tr.innerHTML = `
+      <td>${targetCellHTML}</td>
+      <td>${r.poster}</td>
+      <td>${r.reason}</td>
+      <td class="num">${r.at}</td>
+      <td></td>
+    `;
+    if(relatedPost){
+      tr.querySelector('.target-link').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPostDetail(relatedPost);
+      });
+    }
+    const statusCell = tr.querySelector('td:last-child');
+    const select = document.createElement('select');
+    select.className = 'status-select';
+    ['未対応','確認中','対応済み'].forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      if(s === r.status) opt.selected = true;
+      select.appendChild(opt);
+    });
+    select.addEventListener('click', (e) => e.stopPropagation());
+    select.addEventListener('change', () => {
+      r.status = select.value;
+      showToast(`ステータスを「${select.value}」に更新しました`);
+    });
+    statusCell.appendChild(select);
+    body.appendChild(tr);
+  });
+}
+document.getElementById('report-search').addEventListener('input', renderReports);
+
+/* ================================================================
+   投稿申請
+   ================================================================ */
+let applicationStatusFilter = 'all';
+const APPLICATION_FILTERS = [
+  {id:'all', label:'すべて'},
+  {id:'審査中', label:'審査中'},
+  {id:'承認', label:'承認'},
+  {id:'却下', label:'却下'},
+];
+function renderApplicationFilterChips(){
+  const el = document.getElementById('application-filter-chips');
+  el.innerHTML = '';
+  APPLICATION_FILTERS.forEach(f => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (f.id === applicationStatusFilter ? ' active' : '');
+    chip.textContent = f.label;
+    chip.addEventListener('click', () => { applicationStatusFilter = f.id; renderApplications(); });
+    el.appendChild(chip);
+  });
+}
+function applicationStatusBadgeClass(status){
+  if(status === '審査中') return 'warn';
+  if(status === '承認') return 'ok';
+  if(status === '却下') return 'danger';
+  return 'neutral';
+}
+function renderApplications(){
+  renderApplicationFilterChips();
+  const q = document.getElementById('application-search').value.trim().toLowerCase();
+  const body = document.getElementById('application-table-body');
+  body.innerHTML = '';
+  const filtered = APPLICATIONS.filter(a => {
+    if(applicationStatusFilter !== 'all' && a.status !== applicationStatusFilter) return false;
+    if(q && !a.name.toLowerCase().includes(q) && !a.handle.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(filtered.length === 0){
+    body.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--sub); padding:30px;">該当する申請が見つかりませんでした</td></tr>`;
+    return;
+  }
+  filtered.forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="user-cell"><div class="mini-avatar">${a.name.charAt(0)}</div><div><div class="name">${a.name}</div><div class="handle">${a.handle}</div></div></div></td>
+      <td style="max-width:280px;">${a.motivation}</td>
+      <td class="num">${a.at}</td>
+      <td><span class="badge ${applicationStatusBadgeClass(a.status)}">${a.status}</span></td>
+      <td></td>
+    `;
+    const actionCell = tr.querySelector('td:last-child');
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn btn-primary';
+    approveBtn.style.cssText = 'padding:6px 12px; font-size:12px; margin-right:6px;';
+    approveBtn.textContent = '承認';
+    approveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      a.status = '承認';
+      showToast(`${a.name}さんの投稿申請を承認しました`);
+      renderApplications();
+    });
+    const rejectBtn = document.createElement('button');
+    rejectBtn.className = 'btn btn-neutral';
+    rejectBtn.style.cssText = 'padding:6px 12px; font-size:12px;';
+    rejectBtn.textContent = '却下';
+    rejectBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      a.status = '却下';
+      showToast(`${a.name}さんの投稿申請を却下しました`);
+      renderApplications();
+    });
+    actionCell.appendChild(approveBtn);
+    actionCell.appendChild(rejectBtn);
+    tr.addEventListener('click', () => openApplicationModal(a));
+    body.appendChild(tr);
+  });
+}
+document.getElementById('application-search').addEventListener('input', renderApplications);
+
+function openApplicationModal(app){
+  const panel = document.getElementById('modal-panel');
+  const samples = app.samples || [];
+  const categories = app.categories || [];
+  panel.innerHTML = `
+    <button class="modal-close" id="modal-close-btn">✕</button>
+    <div class="modal-user-head">
+      <div class="avatar">${app.name.charAt(0)}</div>
+      <div>
+        <div class="name">${app.name}</div>
+        <div class="handle">${app.handle}</div>
+      </div>
+    </div>
+
+    <div class="modal-sub-head">① 権利について</div>
+    <div style="font-size:13px; display:flex; align-items:center; gap:6px;">
+      ${app.rightsConfirmed
+        ? '<span class="badge ok">確認済み</span><span style="color:var(--sub);">自分自身が制作したものであることを申請者が確認しています</span>'
+        : '<span class="badge danger">未確認</span>'}
+    </div>
+
+    <div class="modal-sub-head">② 添付された作品（${samples.length}枚）</div>
+    <div class="sample-grid">
+      ${samples.length === 0
+        ? '<div style="font-size:12.5px; color:var(--sub);">作品は添付されていません</div>'
+        : samples.map(c => `<div class="sample-thumb">${illustrationSVG(c)}</div>`).join('')}
+    </div>
+
+    <div class="modal-sub-head">③ どの分類で投稿していきたいか</div>
+    <div class="tag-row">
+      ${categories.length === 0
+        ? '<span style="font-size:12.5px; color:var(--sub);">選択されていません</span>'
+        : categories.map(t => `<span class="tag-chip-sm">${t}</span>`).join('')}
+    </div>
+
+    <div class="modal-sub-head">④ 絵を描くことへの意欲</div>
+    <div style="font-size:13.5px; line-height:1.7;">${app.motivation || '（記入なし）'}</div>
+
+    <div class="modal-sub-head">⑤ 創作活動の実績（任意）</div>
+    <div style="font-size:13.5px; line-height:1.7; color:${app.achievements ? 'var(--ink)' : 'var(--sub)'};">${app.achievements || '記入なし'}</div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="modal-approve-btn">承認</button>
+      <button class="btn btn-neutral" id="modal-reject-btn">却下</button>
+    </div>
+  `;
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-approve-btn').addEventListener('click', () => {
+    app.status = '承認';
+    showToast(`${app.name}さんの投稿申請を承認しました`);
+    closeModal();
+    renderApplications();
+  });
+  document.getElementById('modal-reject-btn').addEventListener('click', () => {
+    app.status = '却下';
+    showToast(`${app.name}さんの投稿申請を却下しました`);
+    closeModal();
+    renderApplications();
+  });
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+/* ================================================================
+   設定
+   ================================================================ */
+document.querySelectorAll('#view-settings .switch').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.classList.toggle('on');
+  });
+});
+
+/* ================================================================
+   初期表示
+   ================================================================ */
+renderDashboard();
+renderUsers();
+renderPosts();
+renderSaveData();
+renderReports();
+renderApplications();
+</script>
+</body>
+</html>

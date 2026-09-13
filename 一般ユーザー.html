@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Scoplip</title>
+<style>
+  /* ============================================================
+     デザイントークン
+     白ベース / 青アクセント / グレーで情報整理 / 角丸 / 広めの余白
+     ============================================================ */
+  :root{
+    --color-bg:#ffffff;
+    --color-accent:#2563eb;
+    --color-accent-dark:#1d4ed8;
+    --color-accent-soft:#eaf1ff;
+    --color-gray-50:#f7f7f9;
+    --color-gray-100:#f0f1f4;
+    --color-gray-300:#e2e4ea;
+    --color-gray-500:#9297a3;
+    --color-text:#1b1d22;
+    --color-text-sub:#6b7078;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:9px;
+    --tabbar-h:60px;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--color-gray-100);
+    color:var(--color-text);
+    display:flex; justify-content:center;
+  }
+
+  /* スマホ本体を模したフレーム（PCで開いた時の見やすさ用） */
+  .device{
+    width:100%;
+    max-width:430px;
+    height:100vh;
+    height:100dvh; /* モバイルのアドレスバー分の高さ揺れに対応 */
+    background:var(--color-bg);
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 0 40px rgba(0,0,0,0.08);
+  }
+
+  button{font-family:inherit; cursor:pointer;}
+  input{font-family:inherit;}
+
+  /* ============================================================
+     画面共通
+     device の高さいっぱいに固定し、内部の .content だけが
+     縦スクロールする構造にする（.screen 自体はスクロールしない）
+     ============================================================ */
+  .screen{
+    display:none;
+    flex-direction:column;
+    height:100%;
+    min-height:0;
+    background:var(--color-bg);
+  }
+  .screen.active{display:flex;}
+
+  .content{
+    flex:1 1 auto;
+    min-height:0; /* flex子要素でoverflow-y:autoを効かせるために必須 */
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:20px 20px 32px;
+  }
+  .content.no-pad{padding:0;}
+
+  /* 上部バー（詳細画面などで使用） */
+  .topbar{
+    display:flex; align-items:center; gap:8px;
+    padding:14px 12px;
+    border-bottom:1px solid var(--color-gray-300);
+    flex-shrink:0;
+    background:var(--color-bg);
+  }
+  .topbar .title{
+    flex:1;
+    font-size:16px; font-weight:700;
+    text-align:center;
+    color:var(--color-text);
+  }
+  .icon-btn{
+    width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:none;
+    border-radius:var(--radius-sm);
+    color:var(--color-text);
+  }
+  .icon-btn:active{background:var(--color-gray-100);}
+  .topbar-action{
+    min-width:38px;
+    display:flex; justify-content:flex-end;
+  }
+  .analytics-btn{
+    display:flex; align-items:center; gap:4px;
+    background:var(--color-accent-soft);
+    color:var(--color-accent-dark);
+    border:none; border-radius:999px;
+    padding:7px 12px;
+    font-size:13px; font-weight:700;
+    white-space:nowrap;
+  }
+
+  /* ホームのヘッダー */
+  .home-header{
+    padding:20px 20px 12px;
+    flex-shrink:0;
+  }
+  .logo{
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:16px;
+  }
+  .logo-mark{
+    width:30px; height:30px;
+    border-radius:9px;
+    background:var(--color-accent);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .logo-text{
+    font-size:20px; font-weight:800; letter-spacing:-0.02em;
+    color:var(--color-text);
+  }
+  .search-bar{
+    display:flex; align-items:center; gap:8px;
+    background:var(--color-gray-100);
+    border-radius:var(--radius-md);
+    padding:12px 14px;
+  }
+  .search-bar input{
+    border:none; background:none; outline:none;
+    font-size:14px; width:100%; color:var(--color-text);
+  }
+  .search-bar input::placeholder{color:var(--color-gray-500);}
+
+  /* 作品グリッド（2列） */
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .work-card{
+    border:none; background:none; padding:0; text-align:left;
+    border-radius:var(--radius-md);
+    overflow:hidden;
+  }
+  .work-card .thumb{
+    width:100%; aspect-ratio:3/4;
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    background:var(--color-gray-100);
+  }
+  .work-card .thumb svg{width:100%; height:100%; display:block;}
+  .work-card .meta{padding:8px 2px 0;}
+  .work-card .w-title{
+    font-size:13px; font-weight:700; color:var(--color-text);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .work-card .w-author{
+    font-size:12px; color:var(--color-text-sub); margin-top:2px;
+  }
+
+  .section-label{
+    font-size:13px; font-weight:700; color:var(--color-text-sub);
+    margin:4px 0 12px;
+  }
+
+  /* 下部タブバー */
+  .tabbar{
+    flex-shrink:0;
+    height:var(--tabbar-h);
+    display:flex;
+    border-top:1px solid var(--color-gray-300);
+    background:var(--color-bg);
+  }
+  .tab-btn{
+    flex:1;
+    border:none; background:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px;
+    color:var(--color-gray-500);
+    font-size:10.5px;
+  }
+  .tab-btn svg{width:22px; height:22px;}
+  .tab-btn.active{color:var(--color-accent);}
+
+  /* 作品詳細 */
+  .detail-image{
+    width:100%; aspect-ratio:3/4;
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    background:var(--color-gray-100);
+    margin-bottom:16px;
+  }
+  .detail-image svg{width:100%; height:100%; display:block;}
+  .detail-author{font-size:13px; color:var(--color-text-sub); margin-bottom:4px;}
+  .detail-title{font-size:20px; font-weight:800; margin-bottom:18px;}
+  .detail-caption{
+    font-size:13.5px; color:var(--color-text-sub);
+    line-height:1.6; margin:-10px 0 18px;
+    white-space:pre-wrap; word-break:break-word;
+  }
+  .tag-row{ display:flex; gap:6px; flex-wrap:wrap; margin:-8px 0 18px; }
+  .tag-pill{
+    background:var(--color-accent-soft); color:var(--color-accent-dark);
+    font-size:11.5px; font-weight:700; padding:4px 11px; border-radius:999px;
+  }
+  .tag-pick-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .tag-pick{
+    border:1.5px solid var(--color-gray-300); background:#fff; color:var(--color-text-sub);
+    font-size:13px; font-weight:600; padding:8px 14px; border-radius:999px;
+  }
+  .tag-pick.active{
+    border-color:var(--color-accent); background:var(--color-accent-soft); color:var(--color-accent-dark);
+  }
+
+  .action-row{display:flex; gap:10px;}
+  .btn{
+    flex:1;
+    border:none; border-radius:var(--radius-md);
+    padding:14px 8px;
+    font-size:14px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn-primary{background:var(--color-accent); color:#fff;}
+  .btn-secondary{background:var(--color-gray-100); color:var(--color-text);}
+  .btn-outline{background:#fff; border:1.5px solid var(--color-accent); color:var(--color-accent);}
+  .btn.full{width:100%;}
+  .btn:active{opacity:0.8;}
+  .btn:disabled{opacity:0.5; cursor:default;}
+  .btn:disabled:active{opacity:0.5;}
+
+  /* 投稿機能の申請カード（このビルドには投稿権限がないユーザー向け） */
+  .apply-card{
+    background:var(--color-gray-50);
+    border-radius:var(--radius-md);
+    padding:18px;
+    margin-top:4px;
+  }
+  .apply-card-text{margin-bottom:14px;}
+  .apply-card-text .t{font-size:14.5px; font-weight:700;}
+  .apply-card-text .d{font-size:12.5px; color:var(--color-text-sub); margin-top:4px; line-height:1.6;}
+
+  /* 投稿申請：作品の添付（最大3枚） */
+  .apply-images-grid{ display:flex; gap:10px; }
+  .apply-image-cell{ position:relative; width:76px; height:76px; flex-shrink:0; }
+  .apply-image-thumb{
+    width:100%; height:100%; border-radius:var(--radius-sm);
+    background-size:cover; background-position:center;
+    border:1px solid var(--color-gray-300);
+  }
+  .apply-image-remove{
+    position:absolute; top:-6px; right:-6px;
+    width:20px; height:20px; border-radius:50%;
+    border:none; background:var(--color-text); color:#fff;
+    font-size:10px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .apply-image-add{
+    width:76px; height:76px; flex-shrink:0;
+    border:1.5px dashed var(--color-gray-300); border-radius:var(--radius-sm);
+    background:var(--color-gray-50); color:var(--color-accent);
+    font-size:20px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* 部分保存画面 */
+  .capture-wrap{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    padding:16px 20px 0;
+  }
+  .capture-hint{
+    font-size:13px; color:var(--color-text-sub);
+    margin-bottom:12px;
+    text-align:center;
+  }
+  .capture-area{
+    position:relative;
+    width:100%; aspect-ratio:3/4;
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    background:var(--color-gray-100);
+    touch-action:none;
+    user-select:none;
+  }
+  .capture-area svg{width:100%; height:100%; display:block; pointer-events:none;}
+  .selection-box{
+    position:absolute;
+    border:2px dashed var(--color-accent);
+    background:rgba(37,99,235,0.15);
+    display:none;
+    pointer-events:none;
+    border-radius:4px;
+  }
+  .capture-footer{
+    flex-shrink:0;
+    padding:18px 20px 28px;
+  }
+  .capture-footer .row{display:flex; gap:10px;}
+  .saved-msg{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--color-accent-soft);
+    color:var(--color-accent-dark);
+    border-radius:var(--radius-md);
+    padding:16px;
+    font-size:14px; font-weight:700;
+  }
+
+  /* コレクション */
+  .folder-scroll{
+    display:flex; gap:8px;
+    overflow-x:auto;
+    padding-bottom:14px;
+    margin-bottom:6px;
+  }
+  .folder-scroll::-webkit-scrollbar{display:none;}
+  .folder-chip{
+    flex-shrink:0;
+    border:1.5px solid var(--color-gray-300);
+    background:#fff;
+    color:var(--color-text-sub);
+    border-radius:999px;
+    padding:8px 14px;
+    font-size:13px; font-weight:600;
+    white-space:nowrap;
+  }
+  .folder-chip.active{
+    border-color:var(--color-accent);
+    background:var(--color-accent-soft);
+    color:var(--color-accent-dark);
+  }
+  .folder-chip.add{
+    border-style:dashed;
+    color:var(--color-accent);
+    border-color:var(--color-accent);
+    background:#fff;
+  }
+  .clip-card{
+    border:none; background:none; padding:0;
+  }
+  .clip-card .thumb{
+    width:100%; aspect-ratio:1/1;
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    background:var(--color-gray-100);
+    border:1px solid var(--color-gray-300);
+  }
+  .clip-card .thumb svg{width:100%; height:100%; display:block;}
+  .clip-card .clip-label{
+    font-size:12.5px; font-weight:700; color:var(--color-text);
+    margin-top:8px; text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .clip-card .clip-sub{
+    font-size:11px; color:var(--color-text-sub);
+    margin-top:2px; text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .empty-state{
+    text-align:center; color:var(--color-text-sub);
+    font-size:13px; padding:60px 20px;
+  }
+
+  /* ---------- ボトムシート（モーダル） ---------- */
+  .modal-overlay{
+    position:absolute; inset:0;
+    background:rgba(20,21,26,0.45);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:100;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-sheet{
+    width:100%;
+    max-height:82%;
+    overflow-y:auto;
+    background:#fff;
+    border-radius:22px 22px 0 0;
+    padding:14px 20px 26px;
+    animation:sheet-up .18s ease-out;
+  }
+  @keyframes sheet-up{
+    from{ transform:translateY(18px); opacity:0; }
+    to{ transform:translateY(0); opacity:1; }
+  }
+  .modal-handle{
+    width:36px; height:4px; border-radius:999px;
+    background:var(--color-gray-300);
+    margin:0 auto 18px;
+  }
+  .modal-title{font-size:16px; font-weight:800; margin-bottom:18px;}
+  .save-modal-top{display:flex; gap:14px; margin-bottom:20px;}
+  .save-modal-thumb{
+    width:64px; height:64px; flex-shrink:0;
+    border-radius:12px; overflow:hidden;
+    background:var(--color-gray-100);
+    border:1px solid var(--color-gray-300);
+  }
+  .save-modal-thumb svg{width:100%; height:100%; display:block;}
+  .save-modal-name-field{flex:1; min-width:0;}
+  .field-label{
+    font-size:12.5px; font-weight:700; color:var(--color-text-sub);
+    margin-bottom:8px;
+  }
+  .text-input{
+    width:100%;
+    border:1.5px solid var(--color-gray-300);
+    border-radius:var(--radius-md);
+    padding:12px 14px;
+    font-size:14px;
+    outline:none;
+    color:var(--color-text);
+  }
+  .text-input:focus{border-color:var(--color-accent);}
+  .folder-chip-row{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin-bottom:22px;
+  }
+  .new-folder-inline{
+    display:flex; gap:8px; width:100%; margin-top:2px;
+  }
+  .new-folder-inline .text-input{flex:1;}
+  .new-folder-inline .btn{flex:0 0 auto; padding:12px 16px;}
+  .modal-footer-row{display:flex; gap:10px;}
+
+  /* プロフィール */
+  .profile-head{
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:20px;
+  }
+  .avatar{
+    width:64px; height:64px; border-radius:50%;
+    background:var(--color-accent-soft);
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; color:var(--color-accent-dark); font-weight:800;
+    flex-shrink:0;
+  }
+  .profile-name{font-size:17px; font-weight:800;}
+  .profile-sub{font-size:12.5px; color:var(--color-text-sub); margin-top:2px;}
+  .stat-row{
+    display:flex;
+    border-top:1px solid var(--color-gray-300);
+    border-bottom:1px solid var(--color-gray-300);
+    margin-bottom:22px;
+  }
+  .stat{
+    flex:1; text-align:center; padding:14px 4px;
+  }
+  .stat + .stat{border-left:1px solid var(--color-gray-300);}
+  .stat .num{font-size:17px; font-weight:800;}
+  .stat .label{font-size:11.5px; color:var(--color-text-sub); margin-top:2px;}
+
+  /* 分析画面 */
+  .analytics-image{
+    position:relative;
+    width:100%; aspect-ratio:3/4;
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    background:var(--color-gray-100);
+    margin-bottom:18px;
+  }
+  .analytics-image svg{width:100%; height:100%; display:block; position:absolute; top:0; left:0;}
+  .stat-cards{display:flex; gap:10px; margin-bottom:18px;}
+  .stat-card{
+    flex:1;
+    background:var(--color-gray-50);
+    border-radius:var(--radius-md);
+    padding:14px;
+    text-align:center;
+  }
+  .stat-card .num{font-size:19px; font-weight:800;}
+  .stat-card .label{font-size:12px; color:var(--color-text-sub); margin-top:4px;}
+
+  .list-link{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--color-gray-50);
+    border:none; border-radius:var(--radius-md);
+    padding:15px 16px; width:100%;
+    font-size:14px; font-weight:700; color:var(--color-text);
+  }
+  .note{font-size:12px; color:var(--color-text-sub); margin-top:10px; line-height:1.6;}
+
+  /* 保存者一覧 */
+  .saver-row{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; border:none; background:none;
+    padding:14px 4px;
+    border-bottom:1px solid var(--color-gray-300);
+    text-align:left;
+  }
+  .saver-name{font-size:14.5px; font-weight:700;}
+  .saver-name.anon{color:var(--color-text-sub); font-weight:600;}
+  .saver-count{font-size:12.5px; color:var(--color-text-sub);}
+  .chev{color:var(--color-gray-500);}
+
+  /* アバター（プロフィール／コメント共通の丸アイコン） */
+  .avatar-circle{
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; color:var(--color-accent-dark);
+    background-size:cover; background-position:center;
+    flex-shrink:0;
+  }
+  .avatar-circle.lg{width:64px; height:64px; font-size:24px;}
+  .avatar-circle.sm{width:32px; height:32px; font-size:13px;}
+
+  /* コメント */
+  .comment-row{
+    display:flex; gap:10px;
+    padding:12px 2px;
+    border-bottom:1px solid var(--color-gray-300);
+  }
+  .comment-body{flex:1; min-width:0;}
+  .comment-author{font-size:13px; font-weight:700;}
+  .comment-text{font-size:13.5px; color:var(--color-text); margin-top:3px; line-height:1.5; word-break:break-word;}
+  .comment-input-row{
+    display:flex; gap:8px;
+    margin-top:14px;
+  }
+  .comment-input-row .text-input{flex:1;}
+  .comment-input-row .btn{flex:0 0 auto; padding:12px 18px;}
+  .comment-empty{
+    font-size:13px; color:var(--color-text-sub);
+    padding:16px 2px;
+  }
+
+  /* 設定 */
+  .setting-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 4px;
+    border-bottom:1px solid var(--color-gray-300);
+  }
+  .setting-text .t{font-size:14.5px; font-weight:700;}
+  .setting-text .d{font-size:12px; color:var(--color-text-sub); margin-top:3px;}
+  .switch{
+    width:46px; height:27px; border-radius:999px;
+    background:var(--color-gray-300);
+    position:relative; border:none; flex-shrink:0;
+    transition:background .15s;
+  }
+  .switch.on{background:var(--color-accent);}
+  .switch .knob{
+    position:absolute; top:2.5px; left:2.5px;
+    width:22px; height:22px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.25);
+    transition:left .15s;
+  }
+  .switch.on .knob{left:21.5px;}
+
+  /* 投稿フォーム */
+  .post-image-picker{
+    width:100%; aspect-ratio:3/4;
+    border-radius:var(--radius-lg);
+    border:1.5px dashed var(--color-gray-300);
+    background:var(--color-gray-50);
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .post-image-empty{
+    width:100%; height:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px;
+    color:var(--color-text-sub);
+    font-size:13px;
+  }
+  .post-image-empty .circle{
+    width:56px; height:56px; border-radius:50%;
+    background:var(--color-accent-soft);
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; color:var(--color-accent);
+  }
+  .post-image-preview-img{
+    width:100%; height:100%;
+    background-size:cover; background-position:center;
+  }
+  .textarea{
+    min-height:88px;
+    resize:vertical;
+    line-height:1.6;
+    font-family:inherit;
+  }
+
+  /* トースト */
+  .toast{
+    position:absolute;
+    left:50%; bottom:90px;
+    transform:translateX(-50%) translateY(10px);
+    background:rgba(27,29,34,0.92);
+    color:#fff;
+    font-size:13px; font-weight:600;
+    padding:12px 18px;
+    border-radius:999px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s, transform .2s;
+    z-index:50;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="device" id="device">
+
+  <!-- ============================================================
+       ① ホーム
+  ============================================================= -->
+  <div class="screen active" id="screen-home">
+    <div class="home-header">
+      <div class="logo">
+        <div class="logo-mark">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4L20 20M20 4L4 20" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </div>
+        <div class="logo-text">Scoplip</div>
+      </div>
+      <div class="search-bar" id="home-search-entry">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9297a3" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9297a3" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" placeholder="作品・作者を検索" readonly>
+      </div>
+    </div>
+    <div class="content">
+      <div class="section-label">おすすめ作品</div>
+      <div class="grid" id="home-grid"></div>
+    </div>
+    <div class="tabbar" id="tabbar-home"></div>
+  </div>
+
+  <!-- ============================================================
+       検索タブ
+  ============================================================= -->
+  <div class="screen" id="screen-search">
+    <div class="home-header">
+      <div class="search-bar">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9297a3" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9297a3" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" id="search-input" placeholder="作品・作者を検索">
+      </div>
+    </div>
+    <div class="content">
+      <div class="folder-scroll" id="search-tag-scroll"></div>
+      <div class="section-label" id="search-label">すべての作品</div>
+      <div class="grid" id="search-grid"></div>
+    </div>
+    <div class="tabbar" id="tabbar-search"></div>
+  </div>
+
+  <!-- ============================================================
+       ④ コレクション
+  ============================================================= -->
+  <div class="screen" id="screen-collection">
+    <div class="topbar"><div class="title">コレクション</div></div>
+    <div class="content">
+      <div class="folder-scroll" id="folder-scroll"></div>
+      <div class="grid" id="collection-grid"></div>
+    </div>
+    <div class="tabbar" id="tabbar-collection"></div>
+  </div>
+
+  <!-- ============================================================
+       ⑤ プロフィール
+  ============================================================= -->
+  <div class="screen" id="screen-profile">
+    <div class="topbar">
+      <div style="width:38px;"></div>
+      <div class="title">プロフィール</div>
+      <div class="topbar-action">
+        <button class="icon-btn" id="settings-open-btn" aria-label="設定">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="#1b1d22" stroke-width="1.8"/><path d="M19.4 13.5a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.9 2.9l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V20a2 2 0 11-4 0v-.2a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.9-2.9l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H4a2 2 0 110-4h.2a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.9-2.9l.1.1a1.7 1.7 0 001.9.3H10a1.7 1.7 0 001-1.6V4a2 2 0 114 0v.2a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.9 2.9l-.1.1a1.7 1.7 0 00-.3 1.9V10a1.7 1.7 0 001.6 1h.2a2 2 0 110 4h-.2a1.7 1.7 0 00-1.6 1z" stroke="#1b1d22" stroke-width="1.4"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="profile-head">
+        <div id="profile-avatar"></div>
+        <div>
+          <div class="profile-name" id="profile-name-text"></div>
+          <div class="profile-sub" id="profile-handle-text"></div>
+        </div>
+      </div>
+      <button class="btn btn-secondary full" id="profile-edit-btn" style="margin-bottom:20px;">プロフィールを編集</button>
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="stat-collection">0</div><div class="label">コレクション</div></div>
+        <div class="stat"><div class="num">312</div><div class="label">フォロワー</div></div>
+      </div>
+      <div class="apply-card" id="apply-card">
+        <div class="apply-card-text">
+          <div class="t">投稿機能はまだ利用できません</div>
+          <div class="d">申請が承認されると、作品を投稿できるようになります</div>
+        </div>
+        <button class="btn btn-primary full" id="apply-post-btn">投稿機能を申請する</button>
+      </div>
+    </div>
+    <div class="tabbar" id="tabbar-profile"></div>
+  </div>
+
+  <!-- ============================================================
+       ② 作品詳細（他人の作品／自分の投稿 共通）
+  ============================================================= -->
+  <div class="screen" id="screen-detail">
+    <div class="topbar">
+      <button class="icon-btn" id="detail-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#1b1d22" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="title"></div>
+      <div class="topbar-action" id="detail-action"></div>
+    </div>
+    <div class="content">
+      <div class="detail-image" id="detail-image"></div>
+      <div class="detail-author" id="detail-author"></div>
+      <div class="detail-title" id="detail-title"></div>
+      <div class="detail-caption" id="detail-caption"></div>
+      <div class="tag-row" id="detail-tags"></div>
+      <div class="action-row">
+        <button class="btn btn-secondary" id="detail-save-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-6-4-6 4V3z" stroke="#1b1d22" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          保存
+        </button>
+        <button class="btn btn-secondary" id="detail-share-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.4" stroke="#1b1d22" stroke-width="1.6"/><circle cx="6" cy="12" r="2.4" stroke="#1b1d22" stroke-width="1.6"/><circle cx="18" cy="19" r="2.4" stroke="#1b1d22" stroke-width="1.6"/><path d="M8.1 10.7l7.8-4.4M8.1 13.3l7.8 4.4" stroke="#1b1d22" stroke-width="1.6"/></svg>
+          共有
+        </button>
+        <button class="btn btn-primary" id="detail-partial-btn">部分保存</button>
+      </div>
+
+      <div class="section-label" style="margin-top:30px;">コメント</div>
+      <div id="comment-list"></div>
+      <div class="comment-input-row">
+        <input type="text" class="text-input" id="comment-input" placeholder="コメントを入力">
+        <button class="btn btn-primary" id="comment-send-btn">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ③ 部分保存画面
+  ============================================================= -->
+  <div class="screen" id="screen-capture">
+    <div class="topbar">
+      <button class="icon-btn" id="capture-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#1b1d22" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="title">部分保存</div>
+      <div style="width:38px;"></div>
+    </div>
+    <div class="capture-wrap">
+      <div class="capture-hint">保存したい範囲を指でドラッグして選択してください</div>
+      <div class="capture-area" id="capture-area">
+        <div id="capture-image"></div>
+        <div class="selection-box" id="selection-box"></div>
+      </div>
+    </div>
+    <div class="capture-footer" id="capture-footer"></div>
+  </div>
+
+  <!-- ============================================================
+       ⑩ 設定
+  ============================================================= -->
+  <div class="screen" id="screen-settings">
+    <div class="topbar">
+      <button class="icon-btn" id="settings-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#1b1d22" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="title">設定</div>
+      <div style="width:38px;"></div>
+    </div>
+    <div class="content">
+      <div class="section-label">プライバシー</div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <div class="t">保存時は匿名にする</div>
+          <div class="d">ONの場合、あなたが作品を保存すると<br>投稿者には「匿名」として表示されます</div>
+        </div>
+        <button class="switch on" id="anon-switch"><div class="knob"></div></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- トースト -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 汎用ボトムシート（部分保存の名前入力・フォルダ選択／新規フォルダ作成） -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-sheet" id="modal-sheet"></div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   Scoplip プロトタイプ ロジック
+   ================================================================ */
+
+/* ---------- ユーティリティ ---------- */
+function el(html){
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+function fmt(n){ return n.toLocaleString('ja-JP'); }
+
+// 疑似乱数（毎回ロード時の見た目のばらつき用）
+function rand(min, max){ return Math.random() * (max - min) + min; }
+
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ---------- イラスト生成（作品ごとの色だけを差し替えたキャラクターSVG） ----------
+   viewBox は常に「0 0 300 400」の座標系。
+   保存範囲（部分保存）は、この座標系に対する % 値 {x,y,w,h} で管理し、
+   切り抜きサムネイルは viewBox を保存範囲に合わせて変更するだけで実現する。
+*/
+function escapeXML(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function illustrationBody(c){
+  return `
+    <rect x="0" y="0" width="300" height="400" fill="${c.bg}"/>
+    <ellipse cx="150" cy="92" rx="96" ry="92" fill="${c.hair}"/>
+    <rect x="58" y="228" width="184" height="172" rx="34" fill="${c.clothes}"/>
+    <rect x="18" y="270" width="58" height="84" rx="22" fill="${c.skin}"/>
+    <rect x="224" y="270" width="58" height="84" rx="22" fill="${c.skin}"/>
+    <circle cx="150" cy="132" r="76" fill="${c.skin}"/>
+    <path d="M74,116 Q150,34 226,116 L226,66 Q150,4 74,66 Z" fill="${c.hair}"/>
+    <ellipse cx="119" cy="142" rx="10" ry="14" fill="#2b2b33"/>
+    <ellipse cx="181" cy="142" rx="10" ry="14" fill="#2b2b33"/>
+    <path d="M134,177 Q150,187 166,177" stroke="#2b2b33" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  `;
+}
+function uploadedImageBody(work){
+  // アップロードされた画像を 300x400 の座標系いっぱいに敷き詰める（アスペクト比が違ってもトリミング表示）
+  return `
+    <rect x="0" y="0" width="300" height="400" fill="${'#f0f1f4'}"/>
+    <image href="${work.image}" x="0" y="0" width="300" height="400" preserveAspectRatio="xMidYMid slice"/>
+  `;
+}
+function characterMarkup(work){
+  // 「投稿に自分のアカウント名を表示する」設定がONの、自分の投稿にだけ
+  // 右下に小さく名前を焼き込む（透かしのように画像そのものの一部として描画）
+  const watermark = (work.isMine && settings.showWatermark)
+    ? `<text x="284" y="386" font-size="15" text-anchor="end" font-weight="700"
+        fill="rgba(255,255,255,0.9)" style="paint-order:stroke; stroke:rgba(20,21,26,0.4); stroke-width:4px; stroke-linejoin:round;">${escapeXML(profileState.name)}</text>`
+    : '';
+  const body = work.image ? uploadedImageBody(work) : illustrationBody(work.colors);
+  return body + watermark;
+}
+function renderWorkSVG(work, viewBox){
+  viewBox = viewBox || '0 0 300 400';
+  return `<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">${characterMarkup(work)}</svg>`;
+}
+// % 領域 -> その領域だけを映す viewBox 文字列に変換
+function regionToViewBox(r){
+  const x = r.x/100*300, y = r.y/100*400, w = r.w/100*300, h = r.h/100*400;
+  return `${x} ${y} ${w} ${h}`;
+}
+
+/* ---------- おおまかな部位ゾーン（% 座標） ----------
+   キャラクターイラストの「髪 / 目 / 服 / 手」の位置に対応させている。
+*/
+const ZONES = {
+  hair:   {x:15, y:3,  w:70, h:33, label:'髪'},
+  eyes:   {x:33, y:31, w:34, h:11, label:'目'},
+  clothes:{x:10, y:55, w:80, h:41, label:'服'},
+  handL:  {x:3,  y:67, w:19, h:22, label:'手'},
+  handR:  {x:78, y:67, w:19, h:22, label:'手'},
+};
+function zoneRegion(name, shrink){
+  const z = ZONES[name];
+  const s = shrink || 0;
+  return {x:z.x+s, y:z.y+s, w:z.w-s*2, h:z.h-s*2};
+}
+function jitteredRegion(name){
+  const z = ZONES[name];
+  const w = z.w * rand(0.55, 0.85);
+  const h = z.h * rand(0.55, 0.85);
+  const x = z.x + rand(0, Math.max(z.w - w, 0));
+  const y = z.y + rand(0, Math.max(z.h - h, 0));
+  return {x, y, w, h};
+}
+// 適当な領域から一番近いゾーン名（フォルダ分け用）を推定する
+function guessZoneName(region){
+  const cx = region.x + region.w/2, cy = region.y + region.h/2;
+  let best = null, bestDist = Infinity;
+  for(const name in ZONES){
+    const z = ZONES[name];
+    const zcx = z.x + z.w/2, zcy = z.y + z.h/2;
+    const d = Math.hypot(cx-zcx, cy-zcy);
+    if(d < bestDist){ bestDist = d; best = name; }
+  }
+  return best;
+}
+
+/* ---------- タグ（固定6種類） ---------- */
+const TAGS = ['イラスト', 'デザイン', 'アイデア', 'トレス素材', '3Dモデル', '写真'];
+
+/* ---------- ダミーデータ：ホームのおすすめ作品（他人の投稿） ---------- */
+const HOME_WORKS = [
+  {id:'w1', title:'月夜のポートレート', author:'あおい',  isMine:false, tags:['イラスト'],
+    colors:{bg:'#eef2ff', hair:'#2b3a67', skin:'#f6d7c1', clothes:'#3f6b6d'}},
+  {id:'w2', title:'夏の少女',        author:'ひなた',  isMine:false, tags:['イラスト', 'デザイン'],
+    colors:{bg:'#fff7ed', hair:'#c2410c', skin:'#f8d9b0', clothes:'#facc15'}},
+  {id:'w3', title:'森の精霊',        author:'みどり',  isMine:false, tags:['アイデア'],
+    colors:{bg:'#ecfdf3', hair:'#166534', skin:'#e6c299', clothes:'#78350f'}},
+  {id:'w4', title:'雨の日の制服',    author:'つばさ',  isMine:false, tags:['トレス素材'],
+    colors:{bg:'#f0f9ff', hair:'#1e293b', skin:'#f3d4bd', clothes:'#0f766e'}},
+  {id:'w5', title:'桜色のワンピース', author:'さくら', isMine:false, tags:['デザイン'],
+    colors:{bg:'#fdf2f8', hair:'#831843', skin:'#f8d9c4', clothes:'#f472b6'}},
+  {id:'w6', title:'冬支度',          author:'ゆきの',  isMine:false, tags:['写真'],
+    colors:{bg:'#f8fafc', hair:'#334155', skin:'#f4d6bd', clothes:'#64748b'}},
+];
+
+// このビルドには投稿権限がないため、自分の投稿（MY_WORKS）は存在しない
+const ALL_WORKS = [...HOME_WORKS];
+function findWork(id){ return ALL_WORKS.find(w => w.id === id); }
+
+/* ---------- コメント ---------- */
+// workId -> [{author, text}]
+let COMMENTS = {
+  w1: [
+    {author:'ミナト', text:'髪の描き方、とても参考になります！'},
+    {author:'ゆき',   text:'色の組み合わせが素敵ですね。'},
+  ],
+  w4: [
+    {author:'そら', text:'制服のシワの表現が上手すぎます…'},
+  ],
+};
+// アバター用の淡いカラーパレット（コメントした人ごとに色分けする）
+const AVATAR_PALETTE = ['#eaf1ff', '#ffe4e6', '#fff7cd', '#dcfce7', '#ede9fe', '#ffedd5'];
+function colorForName(name){
+  let sum = 0;
+  for(let i=0; i<name.length; i++) sum += name.charCodeAt(i);
+  return AVATAR_PALETTE[sum % AVATAR_PALETTE.length];
+}
+// 小さい／大きいアバターを共通で生成する（画像アップロード済みなら画像、なければ色付きイニシャル）
+function avatarHTML(name, sizeClass, imageUrl, bgColor){
+  const initial = escapeXML((name || '?').charAt(0));
+  if(imageUrl){
+    return `<div class="avatar-circle ${sizeClass}" style="background-image:url('${imageUrl}');"></div>`;
+  }
+  return `<div class="avatar-circle ${sizeClass}" style="background:${bgColor || colorForName(name || '')};">${initial}</div>`;
+}
+function renderComments(work){
+  const list = document.getElementById('comment-list');
+  const items = COMMENTS[work.id] || [];
+  list.innerHTML = '';
+  if(items.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'comment-empty';
+    empty.textContent = 'まだコメントはありません。最初のコメントを送ってみましょう。';
+    list.appendChild(empty);
+  } else {
+    items.forEach(c => {
+      const isMe = c.author === profileState.name;
+      const row = document.createElement('div');
+      row.className = 'comment-row';
+      row.innerHTML = `
+        ${isMe ? avatarHTML(profileState.name, 'sm', profileState.avatarImage, profileState.avatarColor) : avatarHTML(c.author, 'sm')}
+        <div class="comment-body">
+          <div class="comment-author">${escapeXML(c.author)}</div>
+          <div class="comment-text">${escapeXML(c.text)}</div>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+  }
+  const input = document.getElementById('comment-input');
+  input.value = '';
+  const sendBtn = document.getElementById('comment-send-btn');
+  sendBtn.onclick = () => {
+    const text = input.value.trim();
+    if(!text) return;
+    if(!COMMENTS[work.id]) COMMENTS[work.id] = [];
+    COMMENTS[work.id].push({author: profileState.name, text});
+    renderComments(work);
+  };
+}
+
+/* ---------- フォルダ一覧（ユーザーが自由に追加できる） ---------- */
+let FOLDERS = ['髪', '目', '服', '手'];
+function ensureFolder(name){
+  if(name && !FOLDERS.includes(name)) FOLDERS.push(name);
+}
+
+/* ---------- 自分のコレクション（部分保存した資料） ----------
+   最初からいくつかサンプルを入れておく。name / folder は
+   本来ユーザーが保存時に自由入力・選択した想定の値。
+*/
+let MY_COLLECTION = [
+  {workId:'w1', region: zoneRegion('hair', 3),    name:'髪の毛の流れ',       folder:'髪'},
+  {workId:'w2', region: zoneRegion('clothes', 3), name:'衣装のシルエット',    folder:'服'},
+  {workId:'w3', region: zoneRegion('eyes', 1),    name:'目の描き方',         folder:'目'},
+  {workId:'w4', region: zoneRegion('handL', 1),   name:'手のポーズ',         folder:'手'},
+  {workId:'w5', region: zoneRegion('hair', 2),    name:'髪飾りの参考',       folder:'髪'},
+  {workId:'w1', region: zoneRegion('clothes', 4), name:'襟元のデザイン',     folder:'服'},
+  {workId:'w3', region: zoneRegion('eyes', 1),    name:'まつ毛の表現',       folder:'目'},
+  {workId:'w6', region: zoneRegion('handR', 1),   name:'手の重なり方',       folder:'手'},
+];
+
+/* ---------- 設定 ---------- */
+let settings = { anonymizeOnSave: true, showWatermark: true };
+
+/* ---------- 自分のプロフィール ---------- */
+let profileState = {
+  name: 'あなた',
+  handle: '@you_scoplip',
+  avatarColor: '#eaf1ff',
+  avatarImage: null, // アップロードした画像のdata URL（このセッション内のみ有効）
+};
+
+/* ================================================================
+   画面遷移
+   ================================================================ */
+const TAB_SCREENS = ['home','search','collection','profile'];
+let navStack = ['home'];
+
+function showScreen(id, opts){
+  opts = opts || {};
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+
+  if(TAB_SCREENS.includes(id)){
+    navStack = [id];
+    updateTabbar(id);
+  } else if(opts.replace){
+    navStack[navStack.length - 1] = id;
+  } else {
+    navStack.push(id);
+  }
+  window.scrollTo(0,0);
+}
+function goBack(){
+  if(navStack.length > 1){
+    navStack.pop();
+    const prev = navStack[navStack.length - 1];
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + prev).classList.add('active');
+    if(TAB_SCREENS.includes(prev)) updateTabbar(prev);
+  }
+}
+
+/* ---------- タブバー（このビルドには投稿タブがない） ---------- */
+const TAB_DEFS = [
+  {id:'home', label:'ホーム', icon:`<path d="M4 11.5L12 4l8 7.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>`},
+  {id:'search', label:'検索', icon:`<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.9"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`},
+  {id:'collection', label:'コレクション', icon:`<path d="M6 3.5h12v17l-6-4-6 4v-17z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>`},
+  {id:'profile', label:'プロフィール', icon:`<circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.9"/><path d="M4.5 20c1.4-4 4.2-6 7.5-6s6.1 2 7.5 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`},
+];
+function buildTabbar(containerId, activeId){
+  const el2 = document.getElementById(containerId);
+  el2.innerHTML = '';
+  TAB_DEFS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (t.id === activeId ? ' active' : '');
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${t.icon}</svg><span>${t.label}</span>`;
+    btn.addEventListener('click', () => {
+      renderTabContent(t.id);
+      showScreen(t.id);
+    });
+    el2.appendChild(btn);
+  });
+}
+function updateTabbar(activeId){
+  ['tabbar-home','tabbar-search','tabbar-collection','tabbar-profile'].forEach(cid => {
+    buildTabbar(cid, activeId);
+  });
+}
+function renderTabContent(id){
+  if(id === 'search') renderSearch();
+  if(id === 'collection') renderCollection();
+  if(id === 'profile') renderProfile();
+}
+
+/* ================================================================
+   ① ホーム
+   ================================================================ */
+function renderWorkCard(work){
+  const card = document.createElement('button');
+  card.className = 'work-card';
+  card.innerHTML = `
+    <div class="thumb">${renderWorkSVG(work)}</div>
+    <div class="meta">
+      <div class="w-title">${work.title}</div>
+      <div class="w-author">${work.isMine ? profileState.name : work.author}</div>
+    </div>
+  `;
+  card.addEventListener('click', () => openWorkDetail(work));
+  return card;
+}
+function renderHome(){
+  const grid = document.getElementById('home-grid');
+  grid.innerHTML = '';
+  HOME_WORKS.forEach(w => grid.appendChild(renderWorkCard(w)));
+}
+document.getElementById('home-search-entry').addEventListener('click', () => {
+  renderTabContent('search');
+  showScreen('search');
+});
+
+/* ================================================================
+   検索タブ
+   ================================================================ */
+function renderSearch(){
+  const input = document.getElementById('search-input');
+  const grid = document.getElementById('search-grid');
+  const label = document.getElementById('search-label');
+  const tagScroll = document.getElementById('search-tag-scroll');
+  let activeTag = tagScroll.dataset.active || 'すべて';
+
+  tagScroll.innerHTML = '';
+  ['すべて', ...TAGS].forEach(t => {
+    const chip = document.createElement('button');
+    chip.className = 'folder-chip' + (t === activeTag ? ' active' : '');
+    chip.textContent = t;
+    chip.addEventListener('click', () => {
+      tagScroll.dataset.active = t;
+      renderSearch();
+    });
+    tagScroll.appendChild(chip);
+  });
+
+  function run(){
+    const q = input.value.trim().toLowerCase();
+    const results = HOME_WORKS.filter(w => {
+      const matchesText = w.title.toLowerCase().includes(q) || w.author.toLowerCase().includes(q);
+      const matchesTag = activeTag === 'すべて' || (w.tags && w.tags.includes(activeTag));
+      return matchesText && matchesTag;
+    });
+    grid.innerHTML = '';
+    label.textContent = q ? `「${input.value}」の検索結果` : (activeTag === 'すべて' ? 'すべての作品' : `「${activeTag}」の作品`);
+    if(results.length === 0){
+      grid.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.style.gridColumn = '1 / -1';
+      empty.textContent = '該当する作品が見つかりませんでした';
+      grid.appendChild(empty);
+      return;
+    }
+    results.forEach(w => grid.appendChild(renderWorkCard(w)));
+  }
+  input.oninput = run;
+  run();
+}
+
+/* ================================================================
+   ② 作品詳細
+   ================================================================ */
+let currentWork = null;
+function openWorkDetail(work){
+  currentWork = work;
+  document.getElementById('detail-image').innerHTML = renderWorkSVG(work);
+  document.getElementById('detail-author').textContent = work.isMine ? profileState.name : work.author;
+  document.getElementById('detail-title').textContent = work.title;
+  const captionEl = document.getElementById('detail-caption');
+  if(work.caption){
+    captionEl.textContent = work.caption;
+    captionEl.style.display = '';
+  } else {
+    captionEl.textContent = '';
+    captionEl.style.display = 'none';
+  }
+  const tagsEl = document.getElementById('detail-tags');
+  tagsEl.innerHTML = (work.tags || []).map(t => `<span class="tag-pill">${t}</span>`).join('');
+
+  // 自分の投稿には「保存」ボタンは不要（自分の作品を自分のコレクションに保存する意味がないため）
+  document.getElementById('detail-save-btn').style.display = work.isMine ? 'none' : '';
+
+  const actionSlot = document.getElementById('detail-action');
+  actionSlot.innerHTML = '';
+  renderComments(work);
+  showScreen('detail');
+}
+document.getElementById('detail-back').addEventListener('click', goBack);
+document.getElementById('detail-save-btn').addEventListener('click', () => {
+  // 部分保存と同じく、名前とフォルダを選んでから保存する（作品全体をそのまま保存）
+  openSaveModal(currentWork, {x:0, y:0, w:100, h:100}, {
+    name: currentWork.title,
+    folder: FOLDERS[0],
+    title: '保存する資料の情報',
+  });
+});
+document.getElementById('detail-share-btn').addEventListener('click', () => {
+  showToast('共有リンクをコピーしました');
+});
+document.getElementById('detail-partial-btn').addEventListener('click', () => {
+  openCapture(currentWork);
+});
+
+/* ================================================================
+   ③ 部分保存画面（ドラッグで矩形選択）
+   ================================================================ */
+let captureWork = null;
+let dragState = null;
+let currentSelection = null;
+
+function openCapture(work){
+  captureWork = work;
+  currentSelection = null;
+  document.getElementById('capture-image').innerHTML = renderWorkSVG(work);
+  document.getElementById('selection-box').style.display = 'none';
+  renderCaptureFooter();
+  showScreen('capture');
+}
+document.getElementById('capture-back').addEventListener('click', goBack);
+
+function renderCaptureFooter(){
+  const footer = document.getElementById('capture-footer');
+  footer.innerHTML = '';
+  if(!currentSelection){
+    const hint = document.createElement('div');
+    hint.className = 'capture-hint';
+    hint.style.marginBottom = '0';
+    hint.textContent = 'ドラッグして範囲を選択すると保存できます';
+    footer.appendChild(hint);
+    return;
+  }
+  if(currentSelection.saved){
+    const msg = document.createElement('div');
+    msg.className = 'saved-msg';
+    msg.innerHTML = '✓ 保存しました';
+    footer.appendChild(msg);
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `
+    <button class="btn btn-secondary" id="capture-reset-btn">選択し直す</button>
+    <button class="btn btn-primary" id="capture-save-btn">この範囲を保存</button>
+  `;
+  footer.appendChild(row);
+  document.getElementById('capture-reset-btn').addEventListener('click', resetSelection);
+  document.getElementById('capture-save-btn').addEventListener('click', () => {
+    openSaveModal(captureWork, {x:currentSelection.x, y:currentSelection.y, w:currentSelection.w, h:currentSelection.h});
+  });
+}
+function resetSelection(){
+  currentSelection = null;
+  document.getElementById('selection-box').style.display = 'none';
+  renderCaptureFooter();
+}
+// モーダルで名前・フォルダを確定したときに capture 画面側の状態を更新する
+function markCaptureAsSaved(){
+  if(currentSelection) currentSelection.saved = true;
+  renderCaptureFooter();
+}
+
+/* ================================================================
+   保存モーダル（名前入力 ＋ フォルダ選択／新規作成）
+   ================================================================ */
+let pendingSaveWork = null;
+let pendingSaveRegion = null;
+let selectedFolderForSave = null;
+
+function showModal(){ document.getElementById('modal-overlay').classList.add('show'); }
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('show'); }
+
+function openSaveModal(work, region, overrides){
+  overrides = overrides || {};
+  pendingSaveWork = work;
+  pendingSaveRegion = region;
+  const guessedFolderName = ZONES[guessZoneName(region)].label;
+  const suggestedFolderName = overrides.folder || guessedFolderName;
+  selectedFolderForSave = FOLDERS.includes(suggestedFolderName) ? suggestedFolderName : FOLDERS[0];
+  const suggestedName = overrides.name || `${guessedFolderName}の資料`;
+  renderSaveModal(suggestedName, overrides.title || '部分保存する資料の情報');
+  showModal();
+}
+
+function renderSaveModal(defaultName, title){
+  const sheet = document.getElementById('modal-sheet');
+  sheet.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">${title}</div>
+    <div class="save-modal-top">
+      <div class="save-modal-thumb">${renderWorkSVG(pendingSaveWork, regionToViewBox(pendingSaveRegion))}</div>
+      <div class="save-modal-name-field">
+        <div class="field-label">名前</div>
+        <input type="text" class="text-input" id="save-name-input" placeholder="例：髪の毛の流れ" value="${defaultName}">
+      </div>
+    </div>
+    <div class="field-label">保存先フォルダ</div>
+    <div class="folder-chip-row" id="save-folder-chip-row"></div>
+    <div class="modal-footer-row">
+      <button class="btn btn-secondary" id="save-modal-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="save-modal-confirm">この内容で保存</button>
+    </div>
+  `;
+  renderSaveFolderChips();
+  document.getElementById('save-modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('save-modal-confirm').addEventListener('click', confirmSaveModal);
+}
+
+function renderSaveFolderChips(){
+  const row = document.getElementById('save-folder-chip-row');
+  row.innerHTML = '';
+  FOLDERS.forEach(f => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'folder-chip' + (f === selectedFolderForSave ? ' active' : '');
+    chip.textContent = f;
+    chip.addEventListener('click', () => { selectedFolderForSave = f; renderSaveFolderChips(); });
+    row.appendChild(chip);
+  });
+  const addChip = document.createElement('button');
+  addChip.type = 'button';
+  addChip.className = 'folder-chip add';
+  addChip.textContent = '＋ 新規フォルダ';
+  addChip.addEventListener('click', openInlineFolderCreator);
+  row.appendChild(addChip);
+}
+
+function openInlineFolderCreator(){
+  const row = document.getElementById('save-folder-chip-row');
+  if(document.getElementById('new-folder-input')) return; // 二重表示防止
+  const wrap = document.createElement('div');
+  wrap.className = 'new-folder-inline';
+  wrap.innerHTML = `
+    <input type="text" class="text-input" id="new-folder-input" placeholder="新しいフォルダ名">
+    <button type="button" class="btn btn-primary" id="new-folder-confirm">作成</button>
+  `;
+  row.appendChild(wrap);
+  const input = document.getElementById('new-folder-input');
+  input.focus();
+  document.getElementById('new-folder-confirm').addEventListener('click', () => {
+    const name = input.value.trim();
+    if(!name){ input.focus(); return; }
+    ensureFolder(name);
+    selectedFolderForSave = name;
+    renderSaveFolderChips();
+  });
+}
+
+function confirmSaveModal(){
+  const nameInput = document.getElementById('save-name-input');
+  const name = nameInput.value.trim() || '名称未設定の資料';
+  const folder = selectedFolderForSave || FOLDERS[0];
+  ensureFolder(folder);
+  MY_COLLECTION.unshift({workId: pendingSaveWork.id, region: pendingSaveRegion, name, folder});
+  closeModal();
+  markCaptureAsSaved();
+  showToast('保存しました' + (settings.anonymizeOnSave ? '（匿名として保存）' : ''));
+}
+
+/* ---------- コレクション画面から直接フォルダだけを新規作成する ---------- */
+function openCreateFolderStandalone(){
+  const sheet = document.getElementById('modal-sheet');
+  sheet.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">新しいフォルダを作成</div>
+    <div class="field-label">フォルダ名</div>
+    <input type="text" class="text-input" id="standalone-folder-input" placeholder="例：小物">
+    <div class="modal-footer-row">
+      <button class="btn btn-secondary" id="standalone-folder-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="standalone-folder-confirm">作成</button>
+    </div>
+  `;
+  showModal();
+  const input = document.getElementById('standalone-folder-input');
+  input.focus();
+  document.getElementById('standalone-folder-cancel').addEventListener('click', closeModal);
+  document.getElementById('standalone-folder-confirm').addEventListener('click', () => {
+    const name = input.value.trim();
+    if(!name){ input.focus(); return; }
+    ensureFolder(name);
+    document.getElementById('folder-scroll').dataset.active = name;
+    closeModal();
+    renderCollection();
+  });
+}
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'modal-overlay') closeModal();
+});
+
+/* ---- ドラッグ選択の実装 ---- */
+const captureArea = document.getElementById('capture-area');
+const selectionBox = document.getElementById('selection-box');
+
+function pointerPercent(e){
+  const rect = captureArea.getBoundingClientRect();
+  const px = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+  const py = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
+  return {x: px / rect.width * 100, y: py / rect.height * 100};
+}
+function applyBoxStyle(x, y, w, h){
+  selectionBox.style.display = 'block';
+  selectionBox.style.left = x + '%';
+  selectionBox.style.top = y + '%';
+  selectionBox.style.width = w + '%';
+  selectionBox.style.height = h + '%';
+}
+captureArea.addEventListener('pointerdown', (e) => {
+  if(currentSelection && currentSelection.saved) return; // 保存後は再ドラッグ不可（要リセット扱いなし）
+  const p = pointerPercent(e);
+  dragState = {startX:p.x, startY:p.y};
+  currentSelection = null;
+  applyBoxStyle(p.x, p.y, 0, 0);
+  captureArea.setPointerCapture(e.pointerId);
+});
+captureArea.addEventListener('pointermove', (e) => {
+  if(!dragState) return;
+  const p = pointerPercent(e);
+  const x = Math.min(dragState.startX, p.x);
+  const y = Math.min(dragState.startY, p.y);
+  const w = Math.abs(p.x - dragState.startX);
+  const h = Math.abs(p.y - dragState.startY);
+  applyBoxStyle(x, y, w, h);
+});
+function finishDrag(){
+  if(!dragState) return;
+  const rect = selectionBox;
+  const x = parseFloat(rect.style.left), y = parseFloat(rect.style.top);
+  const w = parseFloat(rect.style.width), h = parseFloat(rect.style.height);
+  dragState = null;
+  if(w < 4 || h < 4){
+    selectionBox.style.display = 'none';
+    currentSelection = null;
+  } else {
+    currentSelection = {x, y, w, h, saved:false};
+  }
+  renderCaptureFooter();
+}
+captureArea.addEventListener('pointerup', finishDrag);
+captureArea.addEventListener('pointercancel', finishDrag);
+
+/* ================================================================
+   ④ コレクション
+   ================================================================ */
+function renderCollection(){
+  const folderScroll = document.getElementById('folder-scroll');
+  const grid = document.getElementById('collection-grid');
+
+  const folders = ['すべて', ...FOLDERS];
+  let activeFolder = folderScroll.dataset.active || 'すべて';
+  if(!folders.includes(activeFolder)) activeFolder = 'すべて'; // 万一フォルダが無くなっていた場合の保険
+
+  folderScroll.innerHTML = '';
+  folders.forEach(f => {
+    const chip = document.createElement('button');
+    chip.className = 'folder-chip' + (f === activeFolder ? ' active' : '');
+    chip.textContent = f;
+    chip.addEventListener('click', () => {
+      folderScroll.dataset.active = f;
+      renderCollection();
+    });
+    folderScroll.appendChild(chip);
+  });
+  const addChip = document.createElement('button');
+  addChip.className = 'folder-chip add';
+  addChip.textContent = '＋ フォルダを作成';
+  addChip.addEventListener('click', openCreateFolderStandalone);
+  folderScroll.appendChild(addChip);
+
+  const items = MY_COLLECTION.filter(item => activeFolder === 'すべて' || item.folder === activeFolder);
+  grid.innerHTML = '';
+  if(items.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.style.gridColumn = '1 / -1';
+    empty.textContent = 'このフォルダにはまだ資料がありません';
+    grid.appendChild(empty);
+    return;
+  }
+  items.forEach(item => {
+    const work = findWork(item.workId);
+    if(!work) return;
+    const card = document.createElement('div');
+    card.className = 'clip-card';
+    card.innerHTML = `
+      <div class="thumb">${renderWorkSVG(work, regionToViewBox(item.region))}</div>
+      <div class="clip-label">${item.name || work.title}</div>
+      <div class="clip-sub">${item.folder}・${work.title}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/* ================================================================
+   ⑤ プロフィール
+   ================================================================ */
+function renderProfile(){
+  document.getElementById('profile-avatar').innerHTML =
+    avatarHTML(profileState.name, 'lg', profileState.avatarImage, profileState.avatarColor);
+  document.getElementById('profile-name-text').textContent = profileState.name;
+  document.getElementById('profile-handle-text').textContent = profileState.handle;
+  document.getElementById('stat-collection').textContent = MY_COLLECTION.length;
+}
+document.getElementById('settings-open-btn').addEventListener('click', () => showScreen('settings'));
+
+/* ---------- プロフィール編集（名前・アイコン画像アップロード） ---------- */
+let pendingAvatarImage = undefined; // undefined = 未変更, null = 削除, 文字列 = 新しい画像
+document.getElementById('profile-edit-btn').addEventListener('click', openProfileEditModal);
+
+function openProfileEditModal(){
+  pendingAvatarImage = undefined;
+  const sheet = document.getElementById('modal-sheet');
+  sheet.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">プロフィールを編集</div>
+    <div class="save-modal-top" style="align-items:center;">
+      <div id="profile-edit-avatar-preview">${avatarHTML(profileState.name, 'lg', profileState.avatarImage, profileState.avatarColor)}</div>
+      <div class="save-modal-name-field">
+        <button type="button" class="btn btn-secondary" id="profile-edit-upload-btn" style="padding:10px 14px; font-size:13px;">画像を選択</button>
+        <input type="file" accept="image/*" id="profile-edit-file-input" style="display:none;">
+        <div class="note" style="margin-top:8px;">※ この試作版では画像はこのセッション内のみのプレビューで、保存・共有はされません</div>
+      </div>
+    </div>
+    <div class="field-label">名前</div>
+    <input type="text" class="text-input" id="profile-edit-name-input" placeholder="表示名を入力" value="${profileState.name}">
+    <div class="modal-footer-row">
+      <button class="btn btn-secondary" id="profile-edit-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="profile-edit-confirm">保存</button>
+    </div>
+  `;
+  showModal();
+  document.getElementById('profile-edit-cancel').addEventListener('click', closeModal);
+  document.getElementById('profile-edit-upload-btn').addEventListener('click', () => {
+    document.getElementById('profile-edit-file-input').click();
+  });
+  document.getElementById('profile-edit-file-input').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingAvatarImage = reader.result;
+      document.getElementById('profile-edit-avatar-preview').innerHTML =
+        avatarHTML(profileState.name, 'lg', pendingAvatarImage, profileState.avatarColor);
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('profile-edit-confirm').addEventListener('click', () => {
+    const name = document.getElementById('profile-edit-name-input').value.trim();
+    if(name) profileState.name = name;
+    if(pendingAvatarImage !== undefined) profileState.avatarImage = pendingAvatarImage;
+    closeModal();
+    renderProfile();
+    refreshAllWorkDisplays();
+  });
+}
+
+/* ================================================================
+   ⑩ 設定
+   ================================================================ */
+document.getElementById('settings-back').addEventListener('click', goBack);
+document.getElementById('anon-switch').addEventListener('click', () => {
+  settings.anonymizeOnSave = !settings.anonymizeOnSave;
+  document.getElementById('anon-switch').classList.toggle('on', settings.anonymizeOnSave);
+});
+
+// アカウント名やアイコンの透かしは作品そのものに焼き込まれているため、
+// プロフィール編集のあとは表示中の作品画像を作り直す
+function refreshAllWorkDisplays(){
+  renderHome();
+  renderSearch();
+  renderProfile();
+  if(currentWork){
+    document.getElementById('detail-image').innerHTML = renderWorkSVG(currentWork);
+    document.getElementById('detail-author').textContent = currentWork.isMine ? profileState.name : currentWork.author;
+  }
+}
+
+/* ================================================================
+   投稿機能の申請（このビルドには投稿権限がなく、申請するところまで）
+   ================================================================ */
+document.getElementById('apply-post-btn').addEventListener('click', openApplyModal);
+
+let pendingApplicationImages = []; // 添付した作品画像（data URL、最大3枚）
+
+let pendingApplicationTags = []; // 投稿したい分類（タグ）
+
+function openApplyModal(){
+  pendingApplicationImages = [];
+  pendingApplicationTags = [];
+  const sheet = document.getElementById('modal-sheet');
+  sheet.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-title">投稿機能を申請する</div>
+    <div style="font-size:13px; color:var(--color-text-sub); line-height:1.7; margin-bottom:20px;">
+      承認されると、作品の投稿や、投稿者向けの分析機能が使えるようになります。以下の内容をご確認のうえ、送信してください。
+    </div>
+
+    <div class="field-label">① 権利について</div>
+    <label style="display:flex; align-items:flex-start; gap:10px; margin-bottom:20px; font-size:13px; line-height:1.7; cursor:pointer;">
+      <input type="checkbox" id="apply-rights-check" style="margin-top:3px; flex-shrink:0; width:17px; height:17px;">
+      <span>投稿を希望する作品はすべて自分自身が制作したものであり、他者の権利を侵害するものではないことを確認します</span>
+    </label>
+
+    <div class="field-label">② 自分の作品を添付（最大3枚）</div>
+    <div style="font-size:12px; color:var(--color-text-sub); margin-bottom:10px;">申請内容の確認のため、実際にご自身が制作した作品を添付してください</div>
+    <div class="apply-images-grid" id="apply-images-grid"></div>
+    <input type="file" accept="image/*" multiple id="apply-images-input" style="display:none;">
+
+    <div class="field-label" style="margin-top:22px;">③ どの分類で投稿していきたいか</div>
+    <div class="tag-pick-row" id="apply-tag-row" style="margin-bottom:20px;"></div>
+
+    <div class="field-label">④ 絵を描くことへの意欲</div>
+    <textarea class="text-input textarea" id="apply-motivation-input" placeholder="例：もっと上手くなりたいので、投稿を通じて自分の作品を客観的に見る機会にしたいです" style="margin-bottom:20px;"></textarea>
+
+    <div class="field-label">⑤ 創作活動の実績（任意）</div>
+    <div style="font-size:12px; color:var(--color-text-sub); margin-bottom:10px;">なくても構いません。参考情報としてお聞きしています</div>
+    <textarea class="text-input textarea" id="apply-achievements-input" placeholder="例：他のSNSでの活動、コンテスト入賞歴など" style="margin-bottom:20px;"></textarea>
+
+    <div class="modal-footer-row">
+      <button class="btn btn-secondary" id="apply-modal-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="apply-modal-confirm">申請を送信</button>
+    </div>
+  `;
+  showModal();
+  renderApplyImagesGrid();
+  renderApplyTagRow();
+  document.getElementById('apply-images-input').addEventListener('change', (e) => {
+    const slots = 3 - pendingApplicationImages.length;
+    const files = Array.from(e.target.files || []).slice(0, slots);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingApplicationImages.push(reader.result);
+        renderApplyImagesGrid();
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = ''; // 同じファイルを続けて選び直せるようにする
+  });
+  document.getElementById('apply-modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('apply-modal-confirm').addEventListener('click', () => {
+    if(!document.getElementById('apply-rights-check').checked){
+      showToast('権利についての確認にチェックしてください');
+      return;
+    }
+    if(pendingApplicationImages.length === 0){
+      showToast('自分の作品を1枚以上添付してください');
+      return;
+    }
+    if(pendingApplicationTags.length === 0){
+      showToast('投稿したい分類を1つ以上選択してください');
+      return;
+    }
+    const motivation = document.getElementById('apply-motivation-input').value.trim();
+    if(!motivation){
+      showToast('絵を描くことへの意欲をご記入ください');
+      return;
+    }
+    closeModal();
+    const btn = document.getElementById('apply-post-btn');
+    btn.textContent = '申請済み（承認をお待ちください）';
+    btn.disabled = true;
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-secondary');
+    document.querySelector('#apply-card .apply-card-text .d').textContent = '承認されるまでお待ちください';
+    showToast('申請を送信しました');
+  });
+}
+
+function renderApplyTagRow(){
+  const row = document.getElementById('apply-tag-row');
+  if(!row) return;
+  row.innerHTML = '';
+  TAGS.forEach(tag => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tag-pick' + (pendingApplicationTags.includes(tag) ? ' active' : '');
+    chip.textContent = tag;
+    chip.addEventListener('click', () => {
+      if(pendingApplicationTags.includes(tag)){
+        pendingApplicationTags = pendingApplicationTags.filter(t => t !== tag);
+      } else {
+        pendingApplicationTags.push(tag);
+      }
+      renderApplyTagRow();
+    });
+    row.appendChild(chip);
+  });
+}
+
+function renderApplyImagesGrid(){
+  const grid = document.getElementById('apply-images-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  pendingApplicationImages.forEach((src, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'apply-image-cell';
+    cell.innerHTML = `
+      <div class="apply-image-thumb" style="background-image:url('${src}');"></div>
+      <button type="button" class="apply-image-remove" data-idx="${idx}" aria-label="削除">✕</button>
+    `;
+    grid.appendChild(cell);
+  });
+  if(pendingApplicationImages.length < 3){
+    const addTile = document.createElement('button');
+    addTile.type = 'button';
+    addTile.className = 'apply-image-add';
+    addTile.innerHTML = '＋';
+    addTile.addEventListener('click', () => document.getElementById('apply-images-input').click());
+    grid.appendChild(addTile);
+  }
+  grid.querySelectorAll('.apply-image-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pendingApplicationImages.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderApplyImagesGrid();
+    });
+  });
+}
+
+/* ================================================================
+   初期表示
+   ================================================================ */
+renderHome();
+updateTabbar('home');
+renderProfile();
+</script>
+</body>
+</html>
